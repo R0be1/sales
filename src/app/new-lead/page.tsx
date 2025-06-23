@@ -47,6 +47,7 @@ const leadSchema = z.object({
 
 export default function NewLeadPage() {
   const [leads, setLeads] = useState<SalesLead[]>([]);
+  const [searchAddress, setSearchAddress] = useState('');
   const { toast } = useToast();
   const router = useRouter();
 
@@ -120,6 +121,39 @@ export default function NewLeadPage() {
       setValue('lat', newLat, { shouldValidate: true });
       setValue('lng', newLng, { shouldValidate: true });
     }
+  };
+
+  const handleAddressSearch = () => {
+    if (!isLoaded) return;
+    if (!searchAddress) {
+      toast({
+        title: "Address missing",
+        description: "Please enter an address to search for.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const geocoder = new window.google.maps.Geocoder();
+    geocoder.geocode({ address: searchAddress }, (results, status) => {
+      if (status === 'OK' && results && results[0]) {
+        const location = results[0].geometry.location;
+        const newLat = location.lat();
+        const newLng = location.lng();
+        setValue('lat', newLat, { shouldValidate: true });
+        setValue('lng', newLng, { shouldValidate: true });
+        toast({
+            title: "Location found",
+            description: `Map updated to ${results[0].formatted_address}`,
+        })
+      } else {
+        toast({
+          title: "Location not found",
+          description: `Could not find a location for "${searchAddress}". Status: ${status}`,
+          variant: "destructive",
+        });
+      }
+    });
   };
 
   return (
@@ -231,12 +265,27 @@ export default function NewLeadPage() {
 
                         <div className="grid gap-2">
                             <Label>Location</Label>
-                            <div className="h-64 w-full rounded-md border">
+                            <div className="flex items-center gap-2">
+                                <Input
+                                    id="address-search"
+                                    placeholder="Type an address and click search"
+                                    value={searchAddress}
+                                    onChange={(e) => setSearchAddress(e.target.value)}
+                                     onKeyDown={(e) => {
+                                        if (e.key === 'Enter') {
+                                            e.preventDefault();
+                                            handleAddressSearch();
+                                        }
+                                    }}
+                                />
+                                <Button type="button" onClick={handleAddressSearch}>Search</Button>
+                            </div>
+                            <div className="h-64 w-full rounded-md border mt-2">
                                 {isLoaded ? (
                                     <GoogleMap
                                         mapContainerStyle={{ width: '100%', height: '100%', borderRadius: 'inherit' }}
                                         center={{ lat, lng }}
-                                        zoom={8}
+                                        zoom={12}
                                         onClick={handleMapClick}
                                     >
                                         <Marker position={{ lat, lng }} />
@@ -246,7 +295,7 @@ export default function NewLeadPage() {
                                 )}
                             </div>
                             <div className="text-xs text-muted-foreground mt-1">
-                                Click on the map to set a location.
+                                Search for an address or click on the map to set a location.
                                 <br/>
                                 Current: {lat.toFixed(4)}, {lng.toFixed(4)}
                             </div>
