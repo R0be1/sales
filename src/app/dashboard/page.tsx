@@ -9,11 +9,20 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { Progress } from '@/components/ui/progress';
 import { Icons } from '@/components/icons';
 import type { SalesLead } from '@/lib/types';
-import { initialLeads, districts } from '@/lib/data';
+import { initialLeads, districts, branches } from '@/lib/data';
 import { SidebarProvider, Sidebar, SidebarInset, SidebarHeader, SidebarContent, SidebarMenu, SidebarMenuItem, SidebarMenuButton } from '@/components/ui/sidebar';
-import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 
 export default function DashboardPage() {
@@ -61,11 +70,30 @@ export default function DashboardPage() {
         const districtLeads = leads.filter(l => l.districtId === district.id);
         const expected = districtLeads.reduce((acc, lead) => acc + lead.expectedSavings, 0);
         const generated = districtLeads.reduce((acc, lead) => acc + lead.updates.reduce((s, u) => s + (u.generatedSavings || 0), 0), 0);
+        const achievement = expected > 0 ? Math.min(100, (generated / expected) * 100) : 0;
         return {
+            id: district.id,
             name: district.name,
             expected,
             generated,
+            achievement,
         }
+    });
+
+    const performanceByBranch = branches.map(branch => {
+      const branchLeads = leads.filter(l => l.branchId === branch.id);
+      const expected = branchLeads.reduce((acc, lead) => acc + lead.expectedSavings, 0);
+      const generated = branchLeads.reduce((acc, lead) => acc + lead.updates.reduce((s, u) => s + (u.generatedSavings || 0), 0), 0);
+      const achievement = expected > 0 ? Math.min(100, (generated / expected) * 100) : 0;
+      const districtName = districts.find(d => d.id === branch.districtId)?.name || 'N/A';
+      return {
+          id: branch.id,
+          name: branch.name,
+          district: districtName,
+          expected,
+          generated,
+          achievement,
+      }
     });
 
     return {
@@ -76,6 +104,7 @@ export default function DashboardPage() {
       successRate,
       statusChartData,
       performanceByDistrict,
+      performanceByBranch,
     };
   }, [leads]);
 
@@ -83,17 +112,6 @@ export default function DashboardPage() {
     return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
   };
   
-  const chartConfig = {
-    expected: {
-      label: 'Expected Savings',
-      color: 'hsl(var(--chart-1))',
-    },
-    generated: {
-      label: 'Generated Savings',
-      color: 'hsl(var(--chart-2))',
-    },
-  };
-
   return (
     <SidebarProvider>
       <Sidebar>
@@ -171,7 +189,7 @@ export default function DashboardPage() {
                     </CardContent>
                 </Card>
             </div>
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-4 grid-cols-1 lg:grid-cols-2">
                 <Card>
                     <CardHeader>
                         <CardTitle>Leads by Status</CardTitle>
@@ -191,27 +209,72 @@ export default function DashboardPage() {
                         </ChartContainer>
                     </CardContent>
                 </Card>
-                 <Card>
-                    <CardHeader>
-                        <CardTitle>Performance by District</CardTitle>
-                        <CardDescription>Expected vs. Generated savings for each district.</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <ChartContainer config={chartConfig} className="h-[300px] w-full">
-                             <ResponsiveContainer width="100%" height="100%">
-                                <BarChart data={dashboardStats.performanceByDistrict}>
-                                    <CartesianGrid vertical={false} />
-                                    <XAxis dataKey="name" tickLine={false} axisLine={false} />
-                                    <YAxis />
-                                    <Tooltip content={<ChartTooltipContent />} />
-                                    <Legend />
-                                    <Bar dataKey="expected" fill="var(--color-expected)" radius={4} />
-                                    <Bar dataKey="generated" fill="var(--color-generated)" radius={4} />
-                                </BarChart>
-                            </ResponsiveContainer>
-                        </ChartContainer>
-                    </CardContent>
-                </Card>
+                <div className="space-y-4">
+                  <Card>
+                      <CardHeader>
+                          <CardTitle>Performance by District</CardTitle>
+                          <CardDescription>Savings and achievement rates for each district.</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                          <Table>
+                              <TableHeader>
+                                  <TableRow>
+                                      <TableHead>District</TableHead>
+                                      <TableHead className="text-right">Expected</TableHead>
+                                      <TableHead className="text-right">Generated</TableHead>
+                                      <TableHead className="w-[120px]">Achievement</TableHead>
+                                  </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                  {dashboardStats.performanceByDistrict.map((p) => (
+                                      <TableRow key={p.id}>
+                                          <TableCell className="font-medium">{p.name}</TableCell>
+                                          <TableCell className="text-right">{formatCurrency(p.expected)}</TableCell>
+                                          <TableCell className="text-right">{formatCurrency(p.generated)}</TableCell>
+                                          <TableCell>
+                                              <div className="flex items-center gap-2">
+                                                  <Progress value={p.achievement} className="h-2 w-16" />
+                                                  <span className="text-xs font-medium">{p.achievement.toFixed(0)}%</span>
+                                              </div>
+                                          </TableCell>
+                                      </TableRow>
+                                  ))}
+                              </TableBody>
+                          </Table>
+                      </CardContent>
+                  </Card>
+                  <Card>
+                      <CardHeader>
+                          <CardTitle>Performance by Branch</CardTitle>
+                          <CardDescription>Savings and achievement rates for each branch.</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                          <Table>
+                              <TableHeader>
+                                  <TableRow>
+                                      <TableHead>Branch</TableHead>
+                                      <TableHead>District</TableHead>
+                                      <TableHead className="w-[120px]">Achievement</TableHead>
+                                  </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                  {dashboardStats.performanceByBranch.map((p) => (
+                                      <TableRow key={p.id}>
+                                          <TableCell className="font-medium">{p.name}</TableCell>
+                                          <TableCell>{p.district}</TableCell>
+                                          <TableCell>
+                                              <div className="flex items-center gap-2">
+                                                  <Progress value={p.achievement} className="h-2 w-16" />
+                                                  <span className="text-xs font-medium">{p.achievement.toFixed(0)}%</span>
+                                              </div>
+                                          </TableCell>
+                                      </TableRow>
+                                  ))}
+                              </TableBody>
+                          </Table>
+                      </CardContent>
+                  </Card>
+                </div>
             </div>
           </main>
         </div>
