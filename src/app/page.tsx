@@ -155,7 +155,7 @@ export default function SalesDashboard() {
         <SidebarContent>
             <SidebarMenu>
                 <SidebarMenuItem>
-                    <SidebarMenuButton isActive><Icons.dashboard className="mr-2" />Dashboard</SidebarMenuButton>
+                    <SidebarMenuButton isActive><Icons.clipboardList className="mr-2" />Assignments</SidebarMenuButton>
                 </SidebarMenuItem>
                  <SidebarMenuItem>
                     <SidebarMenuButton><Icons.settings className="mr-2" />Settings</SidebarMenuButton>
@@ -167,14 +167,14 @@ export default function SalesDashboard() {
         <div className="flex min-h-screen w-full flex-col bg-muted/40">
           <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
             <div className="flex items-center">
-                <h1 className="text-lg font-semibold md:text-2xl">Sales Leads</h1>
+                <h1 className="text-lg font-semibold md:text-2xl">Lead Assignments</h1>
             </div>
             <Card>
                 <CardHeader className="flex flex-row items-center justify-between">
                 <div>
-                    <CardTitle>Manage Leads</CardTitle>
+                    <CardTitle>Manage Assignments</CardTitle>
                     <CardDescription>
-                    An overview of all active and pending sales leads.
+                    An overview of all active and pending lead assignments.
                     </CardDescription>
                 </div>
                 <Link href="/new-lead">

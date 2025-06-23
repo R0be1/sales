@@ -176,7 +176,7 @@ export default function NewLeadPage() {
             <SidebarMenu>
                 <SidebarMenuItem>
                     <Link href="/">
-                        <SidebarMenuButton><Icons.dashboard className="mr-2" />Dashboard</SidebarMenuButton>
+                        <SidebarMenuButton><Icons.clipboardList className="mr-2" />Assignments</SidebarMenuButton>
                     </Link>
                 </SidebarMenuItem>
                  <SidebarMenuItem>
