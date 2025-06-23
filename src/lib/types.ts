@@ -1,0 +1,30 @@
+
+export type Officer = {
+  id: string;
+  name: string;
+};
+
+export type Branch = {
+  id: string;
+  name: string;
+  officers: Officer[];
+};
+
+export type SalesLead = {
+  id: string;
+  title: string;
+  description: string;
+  status: 'New' | 'Assigned' | 'In Progress' | 'Pending Closure' | 'Closed' | 'Reopened';
+  branchId: string;
+  officerId: string;
+  location: {
+    lat: number;
+    lng: number;
+  };
+  updates: {
+    text: string;
+    timestamp: Date;
+    author: string;
+  }[];
+  createdAt: Date;
+};
