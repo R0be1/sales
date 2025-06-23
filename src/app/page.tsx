@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
+import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -21,15 +22,6 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog';
-import {
   Sheet,
   SheetContent,
   SheetDescription,
@@ -38,7 +30,6 @@ import {
   SheetFooter,
   SheetClose
 } from '@/components/ui/sheet';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
   Select,
@@ -52,82 +43,11 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Icons } from '@/components/icons';
-import type { SalesLead, Branch, Officer, District } from '@/lib/types';
+import type { SalesLead } from '@/lib/types';
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { SidebarProvider, Sidebar, SidebarInset, SidebarHeader, SidebarContent, SidebarMenu, SidebarMenuItem, SidebarMenuButton } from '@/components/ui/sidebar';
-import { GoogleMap, useJsApiLoader, Marker } from '@react-google-maps/api';
-import { Skeleton } from '@/components/ui/skeleton';
-
-const districts: District[] = [
-    { id: 'dist-1', name: 'Metro Area' },
-    { id: 'dist-2', name: 'Suburban Area' },
-];
-
-const branches: Branch[] = [
-  { id: 'branch-1', name: 'North Branch', districtId: 'dist-1', officers: [{ id: 'officer-1', name: 'John Doe' }, { id: 'officer-2', name: 'Jane Smith' }] },
-  { id: 'branch-2', name: 'South Branch', districtId: 'dist-1', officers: [{ id: 'officer-3', name: 'Peter Jones' }, { id: 'officer-4', name: 'Mary Williams' }] },
-  { id: 'branch-3', name: 'West Branch', districtId: 'dist-2', officers: [{ id: 'officer-5', name: 'Sam Brown' }, { id: 'officer-6', name: 'Patricia Green' }] },
-];
-
-const initialLeads: SalesLead[] = [
-  {
-    id: 'lead-1',
-    title: 'New Client Inquiry - TechCorp',
-    description: 'TechCorp is interested in our new software suite. Follow up required.',
-    status: 'Assigned',
-    districtId: 'dist-1',
-    branchId: 'branch-1',
-    officerId: 'officer-1',
-    location: { lat: 34.0522, lng: -118.2437 },
-    expectedSavings: 50000,
-    updates: [],
-    createdAt: new Date(),
-  },
-  {
-    id: 'lead-2',
-    title: 'Partnership Opportunity - Innovate LLC',
-    description: 'Potential partnership to integrate our platforms.',
-    status: 'In Progress',
-    districtId: 'dist-1',
-    branchId: 'branch-2',
-    officerId: 'officer-3',
-    location: { lat: 40.7128, lng: -74.0060 },
-    expectedSavings: 120000,
-    updates: [{ text: 'Initial contact made.', timestamp: new Date(), author: 'Peter Jones' }],
-    createdAt: new Date(new Date().setDate(new Date().getDate() - 2)),
-  },
-  {
-    id: 'lead-3',
-    title: 'Renewal - Global Solutions',
-    description: 'Contract renewal due next month. Need to discuss new terms.',
-    status: 'Pending Closure',
-    districtId: 'dist-2',
-    branchId: 'branch-3',
-    officerId: 'officer-6',
-    location: { lat: 51.5074, lng: -0.1278 },
-    expectedSavings: 75000,
-    updates: [
-        { text: 'Initial contact made.', timestamp: new Date(), author: 'Patricia Green' },
-        { text: 'Proposal sent.', timestamp: new Date(), author: 'Patricia Green' },
-        { text: 'Client agreed verbally. Waiting for signature.', timestamp: new Date(), author: 'Patricia Green' },
-    ],
-    createdAt: new Date(new Date().setDate(new Date().getDate() - 5)),
-  },
-];
-
-const leadStatusOptions: SalesLead['status'][] = ['New', 'Assigned', 'In Progress', 'Pending Closure', 'Closed', 'Reopened'];
-
-const leadSchema = z.object({
-  title: z.string().min(3, { message: 'Title must be at least 3 characters long.' }),
-  description: z.string().min(10, { message: 'Description must be at least 10 characters long.' }),
-  districtId: z.string().min(1, { message: 'Please select a district.' }),
-  branchId: z.string().min(1, { message: 'Please select a branch.' }),
-  officerId: z.string().min(1, { message: 'Please select an officer.' }),
-  expectedSavings: z.coerce.number().min(0, "Expected savings must be a positive number."),
-  lat: z.coerce.number().min(-90, "Invalid latitude").max(90, "Invalid latitude"),
-  lng: z.coerce.number().min(-180, "Invalid longitude").max(180, "Invalid longitude"),
-});
+import { districts, branches, leadStatusOptions, initialLeads } from '@/lib/data';
 
 const updateSchema = z.object({
     updateText: z.string().min(5, { message: "Update must be at least 5 characters." }),
@@ -135,30 +55,29 @@ const updateSchema = z.object({
 })
 
 export default function SalesDashboard() {
-  const [leads, setLeads] = useState<SalesLead[]>(initialLeads);
-  const [isNewLeadDialogOpen, setIsNewLeadDialogOpen] = useState(false);
+  const [leads, setLeads] = useState<SalesLead[]>([]);
   const [selectedLead, setSelectedLead] = useState<SalesLead | null>(null);
   const [isDetailsSheetOpen, setIsDetailsSheetOpen] = useState(false);
   const { toast } = useToast();
 
-  const { isLoaded } = useJsApiLoader({
-    id: 'google-map-script',
-    googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "",
-  });
-
-  const { register, handleSubmit, control, watch, reset, setValue, formState: { errors } } = useForm<z.infer<typeof leadSchema>>({
-    resolver: zodResolver(leadSchema),
-    defaultValues: {
-        title: '',
-        description: '',
-        districtId: '',
-        branchId: '',
-        officerId: '',
-        expectedSavings: 0,
-        lat: 40.7128,
-        lng: -74.0060,
+  useEffect(() => {
+    const storedLeadsJSON = localStorage.getItem('salesLeads');
+    let leadsData: SalesLead[];
+    if (storedLeadsJSON) {
+        leadsData = JSON.parse(storedLeadsJSON).map((lead: any) => ({
+            ...lead,
+            createdAt: new Date(lead.createdAt),
+            updates: lead.updates.map((update: any) => ({
+                ...update,
+                timestamp: new Date(update.timestamp),
+            })),
+        }));
+    } else {
+        leadsData = initialLeads;
+        localStorage.setItem('salesLeads', JSON.stringify(initialLeads));
     }
-  });
+    setLeads(leadsData);
+  }, []);
   
   const { register: registerUpdate, handleSubmit: handleSubmitUpdate, control: controlUpdate, reset: resetUpdate, formState: { errors: updateErrors } } = useForm<z.infer<typeof updateSchema>>({
     resolver: zodResolver(updateSchema),
@@ -166,45 +85,6 @@ export default function SalesDashboard() {
         updateText: '',
     }
   });
-
-  const selectedDistrictId = watch('districtId');
-  const selectedBranchId = watch('branchId');
-  const lat = watch('lat');
-  const lng = watch('lng');
-
-  const availableBranches = useMemo(() => {
-    if (!selectedDistrictId) return [];
-    return branches.filter(b => b.districtId === selectedDistrictId);
-  }, [selectedDistrictId]);
-
-  const availableOfficers = useMemo(() => {
-    if (!selectedBranchId) return [];
-    const branch = branches.find(b => b.id === selectedBranchId);
-    return branch ? branch.officers : [];
-  }, [selectedBranchId]);
-
-  const onSubmit = (data: z.infer<typeof leadSchema>) => {
-    const newLead: SalesLead = {
-      id: `lead-${Date.now()}`,
-      title: data.title,
-      description: data.description,
-      status: 'New',
-      districtId: data.districtId,
-      branchId: data.branchId,
-      officerId: data.officerId,
-      location: { lat: data.lat, lng: data.lng },
-      expectedSavings: data.expectedSavings,
-      updates: [],
-      createdAt: new Date(),
-    };
-    setLeads(prevLeads => [newLead, ...prevLeads]);
-    toast({
-        title: "Lead Created",
-        description: `New lead "${data.title}" has been successfully created.`,
-    });
-    reset();
-    setIsNewLeadDialogOpen(false);
-  };
   
   const handleViewDetails = (lead: SalesLead) => {
     setSelectedLead(lead);
@@ -231,21 +111,13 @@ export default function SalesDashboard() {
         return lead;
     });
     setLeads(updatedLeads);
+    localStorage.setItem('salesLeads', JSON.stringify(updatedLeads));
     toast({
         title: "Lead Updated",
         description: `Lead "${selectedLead.title}" has been updated.`,
     });
     setIsDetailsSheetOpen(false);
   }
-
-  const handleMapClick = (event: google.maps.MapMouseEvent) => {
-    if (event.latLng) {
-      const newLat = event.latLng.lat();
-      const newLng = event.latLng.lng();
-      setValue('lat', newLat, { shouldValidate: true });
-      setValue('lng', newLng, { shouldValidate: true });
-    }
-  };
 
   const getStatusBadgeVariant = (status: SalesLead['status']): "default" | "secondary" | "destructive" | "outline" => {
     switch (status) {
@@ -304,127 +176,9 @@ export default function SalesDashboard() {
                     An overview of all active and pending sales leads.
                     </CardDescription>
                 </div>
-                <Dialog open={isNewLeadDialogOpen} onOpenChange={setIsNewLeadDialogOpen}>
-                    <DialogTrigger asChild>
-                    <Button><Icons.plusCircle className="mr-2 h-4 w-4" /> Create New Lead</Button>
-                    </DialogTrigger>
-                    <DialogContent className="sm:max-w-[650px]">
-                    <form onSubmit={handleSubmit(onSubmit)}>
-                        <DialogHeader>
-                        <DialogTitle>Create New Sales Lead</DialogTitle>
-                        <DialogDescription>
-                            Fill in the details to create a new task for an officer.
-                        </DialogDescription>
-                        </DialogHeader>
-                        <div className="grid gap-4 py-4">
-                            <div className="grid grid-cols-4 items-center gap-4">
-                                <Label htmlFor="title" className="text-right">Title</Label>
-                                <div className="col-span-3">
-                                    <Input id="title" {...register('title')} />
-                                    {errors.title && <p className="text-red-500 text-xs mt-1">{errors.title.message}</p>}
-                                </div>
-                            </div>
-                            <div className="grid grid-cols-4 items-center gap-4">
-                                <Label htmlFor="description" className="text-right">Description</Label>
-                                 <div className="col-span-3">
-                                    <Textarea id="description" {...register('description')} />
-                                    {errors.description && <p className="text-red-500 text-xs mt-1">{errors.description.message}</p>}
-                                </div>
-                            </div>
-                             <div className="grid grid-cols-4 items-center gap-4">
-                                <Label htmlFor="districtId" className="text-right">District</Label>
-                                <div className="col-span-3">
-                                <Controller
-                                    control={control}
-                                    name="districtId"
-                                    render={({ field }) => (
-                                        <Select onValueChange={field.onChange} value={field.value}>
-                                            <SelectTrigger><SelectValue placeholder="Select a district" /></SelectTrigger>
-                                            <SelectContent>
-                                                {districts.map(d => (<SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>))}
-                                            </SelectContent>
-                                        </Select>
-                                    )}
-                                />
-                                {errors.districtId && <p className="text-red-500 text-xs mt-1">{errors.districtId.message}</p>}
-                                </div>
-                            </div>
-                            <div className="grid grid-cols-4 items-center gap-4">
-                                <Label htmlFor="branchId" className="text-right">Branch</Label>
-                                <div className="col-span-3">
-                                <Controller
-                                    control={control}
-                                    name="branchId"
-                                    render={({ field }) => (
-                                        <Select onValueChange={field.onChange} value={field.value} disabled={!selectedDistrictId}>
-                                            <SelectTrigger><SelectValue placeholder="Select a branch" /></SelectTrigger>
-                                            <SelectContent>
-                                                {availableBranches.map(branch => (<SelectItem key={branch.id} value={branch.id}>{branch.name}</SelectItem>))}
-                                            </SelectContent>
-                                        </Select>
-                                    )}
-                                />
-                                {errors.branchId && <p className="text-red-500 text-xs mt-1">{errors.branchId.message}</p>}
-                                </div>
-                            </div>
-                            <div className="grid grid-cols-4 items-center gap-4">
-                                <Label htmlFor="officerId" className="text-right">Officer</Label>
-                                <div className="col-span-3">
-                                    <Controller
-                                    control={control}
-                                    name="officerId"
-                                    render={({ field }) => (
-                                        <Select onValueChange={field.onChange} value={field.value} disabled={!selectedBranchId}>
-                                        <SelectTrigger><SelectValue placeholder="Select an officer" /></SelectTrigger>
-                                        <SelectContent>
-                                            {availableOfficers.map(officer => (<SelectItem key={officer.id} value={officer.id}>{officer.name}</SelectItem>))}
-                                        </SelectContent>
-                                        </Select>
-                                    )}
-                                    />
-                                    {errors.officerId && <p className="text-red-500 text-xs mt-1">{errors.officerId.message}</p>}
-                                </div>
-                            </div>
-                            <div className="grid grid-cols-4 items-center gap-4">
-                                <Label htmlFor="expectedSavings" className="text-right">Savings Target</Label>
-                                <div className="col-span-3">
-                                    <Input id="expectedSavings" type="number" {...register('expectedSavings')} />
-                                    {errors.expectedSavings && <p className="text-red-500 text-xs mt-1">{errors.expectedSavings.message}</p>}
-                                </div>
-                            </div>
-                            <div className="grid grid-cols-4 items-start gap-4">
-                                <Label className="text-right pt-2">Location</Label>
-                                <div className="col-span-3">
-                                    <div className="h-64 w-full rounded-md border">
-                                        {isLoaded ? (
-                                            <GoogleMap
-                                                mapContainerStyle={{ width: '100%', height: '100%', borderRadius: 'inherit' }}
-                                                center={{ lat, lng }}
-                                                zoom={8}
-                                                onClick={handleMapClick}
-                                            >
-                                                <Marker position={{ lat, lng }} />
-                                            </GoogleMap>
-                                        ) : (
-                                            <Skeleton className="h-full w-full" />
-                                        )}
-                                    </div>
-                                    <div className="text-xs text-muted-foreground mt-1">
-                                        Click on the map to set a location.
-                                        <br/>
-                                        Current: {lat.toFixed(4)}, {lng.toFixed(4)}
-                                    </div>
-                                    {errors.lat && <p className="text-red-500 text-xs mt-1">{errors.lat.message}</p>}
-                                    {errors.lng && <p className="text-red-500 text-xs mt-1">{errors.lng.message}</p>}
-                                </div>
-                            </div>
-                        </div>
-                        <DialogFooter>
-                        <Button type="submit">Create Lead</Button>
-                        </DialogFooter>
-                    </form>
-                    </DialogContent>
-                </Dialog>
+                <Link href="/new-lead">
+                  <Button><Icons.plusCircle className="mr-2 h-4 w-4" /> Create New Lead</Button>
+                </Link>
                 </CardHeader>
                 <CardContent>
                 <Table>
