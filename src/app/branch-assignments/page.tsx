@@ -25,6 +25,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogClose,
+  DialogDescription,
+} from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import { Separator } from '@/components/ui/separator';
 import { Icons } from '@/components/icons';
 import type { SalesLead } from '@/lib/types';
 import { useToast } from "@/hooks/use-toast";
@@ -34,6 +46,10 @@ import { branches, initialLeads } from '@/lib/data';
 
 export default function BranchAssignmentsPage() {
   const [leads, setLeads] = useState<SalesLead[]>([]);
+  const [selectedLead, setSelectedLead] = useState<SalesLead | null>(null);
+  const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);
+  const [assignmentNote, setAssignmentNote] = useState('');
+  const [selectedOfficerId, setSelectedOfficerId] = useState('');
   const { toast } = useToast();
 
   useEffect(() => {
@@ -56,19 +72,35 @@ export default function BranchAssignmentsPage() {
     setLeads(leadsData);
   }, []);
 
-  const handleAssignOfficer = (leadId: string, officerId: string) => {
+  const openAssignDialog = (lead: SalesLead) => {
+    setSelectedLead(lead);
+    setSelectedOfficerId('');
+    setAssignmentNote('');
+    setIsAssignDialogOpen(true);
+  };
+  
+  const handleConfirmAssignment = () => {
+    if (!selectedLead || !selectedOfficerId) {
+        toast({ title: "Assignment Error", description: "You must select an officer to assign the lead.", variant: "destructive" });
+        return;
+    }
     const updatedLeads = leads.map(lead => {
-        if (lead.id === leadId) {
+        if (lead.id === selectedLead.id) {
             const branch = branches.find(b => b.id === lead.branchId);
-            const officer = branch?.officers.find(o => o.id === officerId);
+            const officer = branch?.officers.find(o => o.id === selectedOfficerId);
+            const newUpdates = [
+                ...lead.updates,
+                { text: `Assigned to officer ${officer?.name || 'N/A'}.`, timestamp: new Date(), author: 'Branch Manager' }
+            ];
+            if (assignmentNote.trim()) {
+                newUpdates.push({ text: `Note: ${assignmentNote}`, timestamp: new Date(), author: 'Branch Manager' });
+            }
+
             return {
                 ...lead,
-                officerId: officerId,
+                officerId: selectedOfficerId,
                 status: 'In Progress',
-                updates: [
-                    ...lead.updates,
-                    { text: `Assigned to officer ${officer?.name || 'N/A'}.`, timestamp: new Date(), author: 'Branch Manager' }
-                ]
+                updates: newUpdates
             };
         }
         return lead;
@@ -77,8 +109,9 @@ export default function BranchAssignmentsPage() {
     localStorage.setItem('salesLeads', JSON.stringify(updatedLeads));
     toast({
         title: "Lead Assigned",
-        description: "The lead has been assigned to an officer.",
+        description: "The lead has been successfully assigned to the officer.",
     });
+    setIsAssignDialogOpen(false);
   };
 
   const filteredLeads = useMemo(() => leads.filter(lead => lead.branchId && !lead.officerId), [leads]);
@@ -90,6 +123,10 @@ export default function BranchAssignmentsPage() {
       branchName: branch?.name || 'N/A',
       officers: branch?.officers || []
     };
+  }
+  
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
   }
 
   return (
@@ -141,29 +178,20 @@ export default function BranchAssignmentsPage() {
                         <TableHead>Branch</TableHead>
                         <TableHead>Created At</TableHead>
                         <TableHead>Deadline</TableHead>
-                        <TableHead>Assign to Officer</TableHead>
+                        <TableHead className="text-right">Action</TableHead>
                     </TableRow>
                     </TableHeader>
                     <TableBody>
                     {filteredLeads.map((lead) => {
-                        const { branchName, officers } = getBranchInfo(lead.branchId);
+                        const { branchName } = getBranchInfo(lead.branchId);
                         return (
                             <TableRow key={lead.id}>
                                 <TableCell className="font-medium">{lead.title}</TableCell>
                                 <TableCell>{branchName}</TableCell>
                                 <TableCell>{format(lead.createdAt, "PPP")}</TableCell>
                                 <TableCell>{lead.deadline ? format(new Date(lead.deadline), "PPP") : 'N/A'}</TableCell>
-                                <TableCell>
-                                    <Select onValueChange={(officerId) => handleAssignOfficer(lead.id, officerId)}>
-                                        <SelectTrigger className="w-[180px]">
-                                            <SelectValue placeholder="Select an officer" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {officers.map(officer => (
-                                                <SelectItem key={officer.id} value={officer.id}>{officer.name}</SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
+                                <TableCell className="text-right">
+                                    <Button variant="outline" size="sm" onClick={() => openAssignDialog(lead)}>Assign</Button>
                                 </TableCell>
                             </TableRow>
                         );
@@ -180,6 +208,65 @@ export default function BranchAssignmentsPage() {
           </main>
         </div>
       </SidebarInset>
+      <Dialog open={isAssignDialogOpen} onOpenChange={setIsAssignDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Assign Lead to Officer</DialogTitle>
+            <DialogDescription>
+                Review the lead details and assign it to a specific officer with optional instructions.
+            </DialogDescription>
+          </DialogHeader>
+            {selectedLead && (
+                <div className="space-y-4 py-2">
+                    <div className="space-y-2 rounded-md border bg-muted/50 p-4">
+                        <h4 className="font-semibold">{selectedLead.title}</h4>
+                        <p className="text-sm text-muted-foreground">{selectedLead.description}</p>
+                        <Separator/>
+                        <div className="grid grid-cols-2 gap-2 text-sm">
+                            <div>
+                                <p className="font-medium">Deadline</p>
+                                <p className="text-muted-foreground">{selectedLead.deadline ? format(new Date(selectedLead.deadline), 'PPP') : 'N/A'}</p>
+                            </div>
+                            <div>
+                                <p className="font-medium">Savings Target</p>
+                                <p className="text-muted-foreground">{formatCurrency(selectedLead.expectedSavings)}</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div className="grid gap-2">
+                        <Label htmlFor="officer">Assign to Officer</Label>
+                        <Select onValueChange={setSelectedOfficerId} value={selectedOfficerId}>
+                            <SelectTrigger id="officer" className="w-full">
+                                <SelectValue placeholder="Select an officer" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {getBranchInfo(selectedLead.branchId).officers.map(officer => (
+                                    <SelectItem key={officer.id} value={officer.id}>{officer.name}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+
+                    <div className="grid gap-2">
+                        <Label htmlFor="assignmentNote">Instructions / Note (Optional)</Label>
+                        <Textarea 
+                            id="assignmentNote" 
+                            placeholder="Add a specific instruction for the officer..."
+                            value={assignmentNote}
+                            onChange={(e) => setAssignmentNote(e.target.value)}
+                        />
+                    </div>
+                </div>
+            )}
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button type="button" variant="outline">Cancel</Button>
+            </DialogClose>
+            <Button onClick={handleConfirmAssignment}>Confirm Assignment</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </SidebarProvider>
   );
 }
