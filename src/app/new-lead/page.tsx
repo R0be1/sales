@@ -154,11 +154,14 @@ export default function NewLeadPage() {
         </SidebarHeader>
         <SidebarContent>
             <SidebarMenu>
+                <SidebarMenuItem>
+                    <Link href="/dashboard"><SidebarMenuButton><Icons.dashboard className="mr-2" />Dashboard</SidebarMenuButton></Link>
+                </SidebarMenuItem>
                  <SidebarMenuItem>
                     <Link href="/"><SidebarMenuButton><Icons.clipboardList className="mr-2" />My Assignments</SidebarMenuButton></Link>
                 </SidebarMenuItem>
                  <SidebarMenuItem>
-                    <Link href="/district-assignments"><SidebarMenuButton><Icons.building className="mr-2" />District View</SidebarMenuButton></Link>
+                    <Link href="/district-assignments"><SidebarMenuButton isActive><Icons.building className="mr-2" />District View</SidebarMenuButton></Link>
                 </SidebarMenuItem>
                 <SidebarMenuItem>
                     <Link href="/branch-assignments"><SidebarMenuButton><Icons.building2 className="mr-2" />Branch View</SidebarMenuButton></Link>
