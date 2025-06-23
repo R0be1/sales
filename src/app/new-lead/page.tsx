@@ -32,6 +32,10 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { districts, branches } from '@/lib/data';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { cn } from '@/lib/utils';
+import { format } from 'date-fns';
 
 const leadSchema = z.object({
   title: z.string().min(3, { message: 'Title must be at least 3 characters long.' }),
@@ -42,6 +46,7 @@ const leadSchema = z.object({
   expectedSavings: z.coerce.number().min(0, "Expected savings must be a positive number."),
   lat: z.coerce.number().min(-90, "Invalid latitude").max(90, "Invalid latitude"),
   lng: z.coerce.number().min(-180, "Invalid longitude").max(180, "Invalid longitude"),
+  deadline: z.date({ required_error: 'A deadline date is required.' }),
 });
 
 
@@ -67,6 +72,7 @@ export default function NewLeadPage() {
         expectedSavings: 0,
         lat: 40.7128,
         lng: -74.0060,
+        deadline: new Date(new Date().setDate(new Date().getDate() + 7)),
     }
   });
 
@@ -99,6 +105,7 @@ export default function NewLeadPage() {
       expectedSavings: data.expectedSavings,
       updates: [],
       createdAt: new Date(),
+      deadline: data.deadline,
     };
     
     const existingLeadsJSON = localStorage.getItem('salesLeads');
@@ -193,19 +200,12 @@ export default function NewLeadPage() {
                         </CardDescription>
                     </CardHeader>
                     <CardContent className="grid gap-6">
-                        <div className="grid md:grid-cols-2 gap-4">
-                            <div className="grid gap-2">
-                                <Label htmlFor="title">Title</Label>
-                                <Input id="title" {...register('title')} />
-                                {errors.title && <p className="text-red-500 text-xs mt-1">{errors.title.message}</p>}
-                            </div>
-                            <div className="grid gap-2">
-                                <Label htmlFor="expectedSavings">Savings Target</Label>
-                                <Input id="expectedSavings" type="number" {...register('expectedSavings')} />
-                                {errors.expectedSavings && <p className="text-red-500 text-xs mt-1">{errors.expectedSavings.message}</p>}
-                            </div>
+                        <div className="grid gap-2">
+                            <Label htmlFor="title">Title</Label>
+                            <Input id="title" {...register('title')} />
+                            {errors.title && <p className="text-red-500 text-xs mt-1">{errors.title.message}</p>}
                         </div>
-
+                        
                         <div className="grid gap-2">
                             <Label htmlFor="description">Description</Label>
                             <Textarea id="description" {...register('description')} />
@@ -260,6 +260,47 @@ export default function NewLeadPage() {
                                     )}
                                     />
                                 {errors.officerId && <p className="text-red-500 text-xs mt-1">{errors.officerId.message}</p>}
+                            </div>
+                        </div>
+
+                        <div className="grid md:grid-cols-2 gap-4">
+                            <div className="grid gap-2">
+                                <Label htmlFor="expectedSavings">Savings Target</Label>
+                                <Input id="expectedSavings" type="number" {...register('expectedSavings')} />
+                                {errors.expectedSavings && <p className="text-red-500 text-xs mt-1">{errors.expectedSavings.message}</p>}
+                            </div>
+                            <div className="grid gap-2">
+                                <Label>Deadline</Label>
+                                <Controller
+                                    control={control}
+                                    name="deadline"
+                                    render={({ field }) => (
+                                        <Popover>
+                                            <PopoverTrigger asChild>
+                                                <Button
+                                                    variant={"outline"}
+                                                    className={cn(
+                                                        "w-full justify-start text-left font-normal",
+                                                        !field.value && "text-muted-foreground"
+                                                    )}
+                                                >
+                                                    <Icons.calendar className="mr-2 h-4 w-4" />
+                                                    {field.value ? format(field.value, "PPP") : <span>Pick a date</span>}
+                                                </Button>
+                                            </PopoverTrigger>
+                                            <PopoverContent className="w-auto p-0">
+                                                <Calendar
+                                                    mode="single"
+                                                    selected={field.value}
+                                                    onSelect={field.onChange}
+                                                    disabled={(date) => date < new Date(new Date().setDate(new Date().getDate() - 1))}
+                                                    initialFocus
+                                                />
+                                            </PopoverContent>
+                                        </Popover>
+                                    )}
+                                />
+                                {errors.deadline && <p className="text-red-500 text-xs mt-1">{errors.deadline.message}</p>}
                             </div>
                         </div>
 

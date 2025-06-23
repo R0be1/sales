@@ -67,6 +67,7 @@ export default function SalesDashboard() {
         leadsData = JSON.parse(storedLeadsJSON).map((lead: any) => ({
             ...lead,
             createdAt: new Date(lead.createdAt),
+            deadline: new Date(lead.deadline),
             updates: lead.updates.map((update: any) => ({
                 ...update,
                 timestamp: new Date(update.timestamp),
@@ -190,6 +191,7 @@ export default function SalesDashboard() {
                         <TableHead>Savings Target</TableHead>
                         <TableHead>Location</TableHead>
                         <TableHead>Created At</TableHead>
+                        <TableHead>Deadline</TableHead>
                         <TableHead><span className="sr-only">Actions</span></TableHead>
                     </TableRow>
                     </TableHeader>
@@ -213,6 +215,7 @@ export default function SalesDashboard() {
                                     </a>
                                 </TableCell>
                                 <TableCell>{format(lead.createdAt, "PPP")}</TableCell>
+                                <TableCell>{format(lead.deadline, "PPP")}</TableCell>
                                 <TableCell><Button variant="outline" size="sm" onClick={() => handleViewDetails(lead)}>Details</Button></TableCell>
                             </TableRow>
                         );
@@ -234,6 +237,25 @@ export default function SalesDashboard() {
                     <SheetDescription>{selectedLead.description}</SheetDescription>
                 </SheetHeader>
                 <div className="py-4 space-y-4">
+                    <Separator />
+                     <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div>
+                            <p className="font-medium">Assignee</p>
+                            <p className="text-muted-foreground">{getAssigneeInfo(selectedLead).officer?.name}</p>
+                        </div>
+                        <div>
+                            <p className="font-medium">Deadline</p>
+                            <p className="text-muted-foreground">{format(selectedLead.deadline, "PPP")}</p>
+                        </div>
+                        <div>
+                            <p className="font-medium">Savings Target</p>
+                            <p className="text-muted-foreground">{formatCurrency(selectedLead.expectedSavings)}</p>
+                        </div>
+                        <div>
+                            <p className="font-medium">Status</p>
+                            <Badge variant={getStatusBadgeVariant(selectedLead.status)}>{selectedLead.status}</Badge>
+                        </div>
+                    </div>
                     <Separator />
                     <h4 className="text-sm font-semibold">Update History</h4>
                     <ScrollArea className="h-48 w-full rounded-md border p-4">

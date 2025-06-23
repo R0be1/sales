@@ -35,4 +35,5 @@ export type SalesLead = {
   }[];
   createdAt: Date;
   expectedSavings: number;
+  deadline: Date;
 };

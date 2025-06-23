@@ -24,6 +24,7 @@ export const initialLeads: SalesLead[] = [
     expectedSavings: 50000,
     updates: [],
     createdAt: new Date(),
+    deadline: new Date(new Date().setDate(new Date().getDate() + 7)),
   },
   {
     id: 'lead-2',
@@ -37,6 +38,7 @@ export const initialLeads: SalesLead[] = [
     expectedSavings: 120000,
     updates: [{ text: 'Initial contact made.', timestamp: new Date(), author: 'Peter Jones' }],
     createdAt: new Date(new Date().setDate(new Date().getDate() - 2)),
+    deadline: new Date(new Date().setDate(new Date().getDate() + 14)),
   },
   {
     id: 'lead-3',
@@ -54,6 +56,7 @@ export const initialLeads: SalesLead[] = [
         { text: 'Client agreed verbally. Waiting for signature.', timestamp: new Date(), author: 'Patricia Green' },
     ],
     createdAt: new Date(new Date().setDate(new Date().getDate() - 5)),
+    deadline: new Date(new Date().setDate(new Date().getDate() + 10)),
   },
 ];
 
