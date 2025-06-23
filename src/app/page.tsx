@@ -11,7 +11,6 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-  CardFooter,
 } from '@/components/ui/card';
 import {
   Table,
@@ -57,6 +56,8 @@ import type { SalesLead, Branch, Officer, District } from '@/lib/types';
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { SidebarProvider, Sidebar, SidebarInset, SidebarHeader, SidebarContent, SidebarMenu, SidebarMenuItem, SidebarMenuButton } from '@/components/ui/sidebar';
+import { GoogleMap, useJsApiLoader, Marker } from '@react-google-maps/api';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const districts: District[] = [
     { id: 'dist-1', name: 'Metro Area' },
@@ -140,7 +141,12 @@ export default function SalesDashboard() {
   const [isDetailsSheetOpen, setIsDetailsSheetOpen] = useState(false);
   const { toast } = useToast();
 
-  const { register, handleSubmit, control, watch, reset, formState: { errors } } = useForm<z.infer<typeof leadSchema>>({
+  const { isLoaded } = useJsApiLoader({
+    id: 'google-map-script',
+    googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "",
+  });
+
+  const { register, handleSubmit, control, watch, reset, setValue, formState: { errors } } = useForm<z.infer<typeof leadSchema>>({
     resolver: zodResolver(leadSchema),
     defaultValues: {
         title: '',
@@ -149,8 +155,8 @@ export default function SalesDashboard() {
         branchId: '',
         officerId: '',
         expectedSavings: 0,
-        lat: 0,
-        lng: 0,
+        lat: 40.7128,
+        lng: -74.0060,
     }
   });
   
@@ -163,6 +169,8 @@ export default function SalesDashboard() {
 
   const selectedDistrictId = watch('districtId');
   const selectedBranchId = watch('branchId');
+  const lat = watch('lat');
+  const lng = watch('lng');
 
   const availableBranches = useMemo(() => {
     if (!selectedDistrictId) return [];
@@ -230,6 +238,15 @@ export default function SalesDashboard() {
     setIsDetailsSheetOpen(false);
   }
 
+  const handleMapClick = (event: google.maps.MapMouseEvent) => {
+    if (event.latLng) {
+      const newLat = event.latLng.lat();
+      const newLng = event.latLng.lng();
+      setValue('lat', newLat, { shouldValidate: true });
+      setValue('lng', newLng, { shouldValidate: true });
+    }
+  };
+
   const getStatusBadgeVariant = (status: SalesLead['status']): "default" | "secondary" | "destructive" | "outline" => {
     switch (status) {
       case 'New': return 'default';
@@ -291,7 +308,7 @@ export default function SalesDashboard() {
                     <DialogTrigger asChild>
                     <Button><Icons.plusCircle className="mr-2 h-4 w-4" /> Create New Lead</Button>
                     </DialogTrigger>
-                    <DialogContent className="sm:max-w-[500px]">
+                    <DialogContent className="sm:max-w-[650px]">
                     <form onSubmit={handleSubmit(onSubmit)}>
                         <DialogHeader>
                         <DialogTitle>Create New Sales Lead</DialogTitle>
@@ -375,19 +392,30 @@ export default function SalesDashboard() {
                                     {errors.expectedSavings && <p className="text-red-500 text-xs mt-1">{errors.expectedSavings.message}</p>}
                                 </div>
                             </div>
-                            <div className="grid grid-cols-4 items-center gap-4">
-                                <Label className="text-right col-span-4 mb-2">Target Location</Label>
-                                <div className="grid grid-cols-2 col-span-4 gap-2 pl-4">
-                                    <div>
-                                        <Label htmlFor="lat">Latitude</Label>
-                                        <Input id="lat" type="number" step="any" {...register('lat')} />
-                                        {errors.lat && <p className="text-red-500 text-xs mt-1">{errors.lat.message}</p>}
+                            <div className="grid grid-cols-4 items-start gap-4">
+                                <Label className="text-right pt-2">Location</Label>
+                                <div className="col-span-3">
+                                    <div className="h-64 w-full rounded-md border">
+                                        {isLoaded ? (
+                                            <GoogleMap
+                                                mapContainerStyle={{ width: '100%', height: '100%', borderRadius: 'inherit' }}
+                                                center={{ lat, lng }}
+                                                zoom={8}
+                                                onClick={handleMapClick}
+                                            >
+                                                <Marker position={{ lat, lng }} />
+                                            </GoogleMap>
+                                        ) : (
+                                            <Skeleton className="h-full w-full" />
+                                        )}
                                     </div>
-                                    <div>
-                                        <Label htmlFor="lng">Longitude</Label>
-                                        <Input id="lng" type="number" step="any" {...register('lng')} />
-                                        {errors.lng && <p className="text-red-500 text-xs mt-1">{errors.lng.message}</p>}
+                                    <div className="text-xs text-muted-foreground mt-1">
+                                        Click on the map to set a location.
+                                        <br/>
+                                        Current: {lat.toFixed(4)}, {lng.toFixed(4)}
                                     </div>
+                                    {errors.lat && <p className="text-red-500 text-xs mt-1">{errors.lat.message}</p>}
+                                    {errors.lng && <p className="text-red-500 text-xs mt-1">{errors.lng.message}</p>}
                                 </div>
                             </div>
                         </div>
