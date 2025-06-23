@@ -39,6 +39,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
@@ -58,6 +59,7 @@ export default function OfficerDashboard() {
   const [leads, setLeads] = useState<SalesLead[]>([]);
   const [selectedLead, setSelectedLead] = useState<SalesLead | null>(null);
   const [isDetailsSheetOpen, setIsDetailsSheetOpen] = useState(false);
+  const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -90,22 +92,57 @@ export default function OfficerDashboard() {
   const handleViewDetails = (lead: SalesLead) => {
     setSelectedLead(lead);
     resetUpdate({ updateText: '', status: lead.status });
+    setAttachmentFile(null);
     setIsDetailsSheetOpen(true);
   };
+  
+  const fileToDataUrl = (file: File): Promise<string> => {
+      return new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+      });
+  }
 
-  const onUpdateSubmit = (data: z.infer<typeof updateSchema>) => {
+  const onUpdateSubmit = async (data: z.infer<typeof updateSchema>) => {
     if (!selectedLead) return;
     
     const officer = branches.flatMap(b => b.officers).find(o => o.id === selectedLead.officerId);
     
+    let attachmentData;
+    if (attachmentFile) {
+        try {
+            const dataUrl = await fileToDataUrl(attachmentFile);
+            attachmentData = {
+                name: attachmentFile.name,
+                dataUrl: dataUrl
+            }
+        } catch (error) {
+            console.error("Error reading file:", error);
+            toast({
+                title: "File Error",
+                description: "Could not read the attached file.",
+                variant: "destructive",
+            });
+            return;
+        }
+    }
+
     const updatedLeads = leads.map(lead => {
         if (lead.id === selectedLead.id) {
+            const newUpdate: SalesLead['updates'][0] = { 
+                text: data.updateText, 
+                timestamp: new Date(), 
+                author: officer?.name || 'System',
+                ...(attachmentData && { attachment: attachmentData })
+            };
             return {
                 ...lead,
                 status: data.status,
                 updates: [
                     ...lead.updates,
-                    { text: data.updateText, timestamp: new Date(), author: officer?.name || 'System' }
+                    newUpdate
                 ]
             }
         }
@@ -273,6 +310,16 @@ export default function OfficerDashboard() {
                                     <div key={index} className="text-sm">
                                         <p className="font-medium">{update.author} <span className="text-muted-foreground text-xs">on {update.timestamp ? format(new Date(update.timestamp), "PPp") : ''}</span></p>
                                         <p className="text-muted-foreground">{update.text}</p>
+                                        {update.attachment && (
+                                            <a 
+                                                href={update.attachment.dataUrl} 
+                                                download={update.attachment.name}
+                                                className="flex items-center gap-2 mt-2 text-sm text-primary hover:underline"
+                                            >
+                                                <Icons.file className="h-4 w-4" />
+                                                <span>{update.attachment.name}</span>
+                                            </a>
+                                        )}
                                     </div>
                                 ))}
                             </div>
@@ -305,6 +352,14 @@ export default function OfficerDashboard() {
                             />
                             {updateErrors.status && <p className="text-red-500 text-xs mt-1">{updateErrors.status.message}</p>}
                          </div>
+                         <div>
+                            <Label htmlFor="attachment">Attachment (Optional)</Label>
+                            <Input 
+                                id="attachment" 
+                                type="file" 
+                                onChange={(e) => setAttachmentFile(e.target.files ? e.target.files[0] : null)} 
+                            />
+                        </div>
                          <SheetFooter>
                             <SheetClose asChild>
                                 <Button type="button" variant="outline">Cancel</Button>
