@@ -22,7 +22,10 @@ export const initialLeads: SalesLead[] = [
     officerId: 'officer-1',
     location: { lat: 34.0522, lng: -118.2437 },
     expectedSavings: 50000,
-    updates: [{ text: 'Assigned to John Doe', timestamp: new Date(), author: 'Branch Manager' }],
+    updates: [
+        { text: 'Assigned to John Doe', timestamp: new Date(), author: 'Branch Manager' },
+        { text: 'Initial meeting held. Client is very interested.', timestamp: new Date(), author: 'John Doe', generatedSavings: 25000 }
+    ],
     createdAt: new Date(),
     deadline: new Date(new Date().setDate(new Date().getDate() + 7)),
   },

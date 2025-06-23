@@ -38,7 +38,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 
 const updateSchema = z.object({
     updateText: z.string().min(5, { message: "Update must be at least 5 characters." }),
-    status: z.enum(['New', 'Assigned', 'In Progress', 'Pending Closure', 'Closed', 'Reopened'])
+    status: z.enum(['New', 'Assigned', 'In Progress', 'Pending Closure', 'Closed', 'Reopened']),
+    generatedSavings: z.coerce.number().min(0, "Savings must be a positive number.").optional(),
 })
 
 export default function AssignmentDetailPage({ params }: { params: { id: string } }) {
@@ -75,7 +76,7 @@ export default function AssignmentDetailPage({ params }: { params: { id: string 
     const currentLead = leadsData.find(l => l.id === id);
     if (currentLead) {
         setLead(currentLead);
-        resetUpdate({ updateText: '', status: currentLead.status });
+        resetUpdate({ updateText: '', status: currentLead.status, generatedSavings: 0 });
     }
   }, [id, resetUpdate]);
 
@@ -113,6 +114,7 @@ export default function AssignmentDetailPage({ params }: { params: { id: string 
                 text: data.updateText, 
                 timestamp: new Date(), 
                 author: officer?.name || 'System',
+                ...(data.generatedSavings && { generatedSavings: data.generatedSavings }),
                 ...(attachmentData && { attachment: attachmentData })
             };
             return {
@@ -154,6 +156,8 @@ export default function AssignmentDetailPage({ params }: { params: { id: string 
       const officer = branch && lead.officerId ? branch.officers.find(o => o.id === lead.officerId) : undefined;
       return { district, branch, officer };
   }
+
+  const totalGeneratedSavings = lead?.updates.reduce((acc, u) => acc + (u.generatedSavings || 0), 0) || 0;
 
   return (
     <SidebarProvider>
@@ -214,7 +218,7 @@ export default function AssignmentDetailPage({ params }: { params: { id: string 
                 </CardHeader>
                 <CardContent className="space-y-6">
                     <Separator />
-                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                     <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
                         <div>
                             <p className="font-medium">Assignee</p>
                             <p className="text-muted-foreground">{getAssigneeInfo(lead).officer?.name || 'Unassigned'}</p>
@@ -226,6 +230,10 @@ export default function AssignmentDetailPage({ params }: { params: { id: string 
                         <div>
                             <p className="font-medium">Savings Target</p>
                             <p className="text-muted-foreground">{formatCurrency(lead.expectedSavings)}</p>
+                        </div>
+                         <div>
+                            <p className="font-medium">Total Generated</p>
+                            <p className="text-primary font-semibold">{formatCurrency(totalGeneratedSavings)}</p>
                         </div>
                         <div>
                             <p className="font-medium">Status</p>
@@ -243,6 +251,11 @@ export default function AssignmentDetailPage({ params }: { params: { id: string 
                                         <div key={index} className="text-sm">
                                             <p className="font-medium">{update.author} <span className="text-muted-foreground text-xs">on {update.timestamp ? format(new Date(update.timestamp), "PPp") : ''}</span></p>
                                             <p className="text-muted-foreground">{update.text}</p>
+                                            {update.generatedSavings && (
+                                                <p className="text-sm text-primary font-medium mt-1">
+                                                    + {formatCurrency(update.generatedSavings)}
+                                                </p>
+                                            )}
                                             {update.attachment && (
                                                 <a 
                                                     href={update.attachment.dataUrl} 
@@ -270,21 +283,28 @@ export default function AssignmentDetailPage({ params }: { params: { id: string 
                             <Textarea id="updateText" {...registerUpdate("updateText")} />
                             {updateErrors.updateText && <p className="text-red-500 text-xs mt-1">{updateErrors.updateText.message}</p>}
                          </div>
-                         <div>
-                            <Label htmlFor="status">New Status</Label>
-                             <Controller
-                                control={controlUpdate}
-                                name="status"
-                                render={({ field }) => (
-                                    <Select onValueChange={field.onChange} value={field.value}>
-                                        <SelectTrigger><SelectValue placeholder="Select a status" /></SelectTrigger>
-                                        <SelectContent>
-                                            {leadStatusOptions.map(status => (<SelectItem key={status} value={status}>{status}</SelectItem>))}
-                                        </SelectContent>
-                                    </Select>
-                                )}
-                            />
-                            {updateErrors.status && <p className="text-red-500 text-xs mt-1">{updateErrors.status.message}</p>}
+                         <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <Label htmlFor="status">New Status</Label>
+                                 <Controller
+                                    control={controlUpdate}
+                                    name="status"
+                                    render={({ field }) => (
+                                        <Select onValueChange={field.onChange} value={field.value}>
+                                            <SelectTrigger><SelectValue placeholder="Select a status" /></SelectTrigger>
+                                            <SelectContent>
+                                                {leadStatusOptions.map(status => (<SelectItem key={status} value={status}>{status}</SelectItem>))}
+                                            </SelectContent>
+                                        </Select>
+                                    )}
+                                />
+                                {updateErrors.status && <p className="text-red-500 text-xs mt-1">{updateErrors.status.message}</p>}
+                            </div>
+                             <div>
+                                <Label htmlFor="generatedSavings">Generated Savings (Optional)</Label>
+                                <Input id="generatedSavings" type="number" {...registerUpdate("generatedSavings")} />
+                                {updateErrors.generatedSavings && <p className="text-red-500 text-xs mt-1">{updateErrors.generatedSavings.message}</p>}
+                             </div>
                          </div>
                          <div>
                             <Label htmlFor="attachment">Attachment (Optional)</Label>

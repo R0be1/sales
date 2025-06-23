@@ -35,7 +35,8 @@ export type SalesLead = {
     attachment?: {
         name: string;
         dataUrl: string;
-    }
+    },
+    generatedSavings?: number;
   }[];
   createdAt: Date;
   expectedSavings: number;
