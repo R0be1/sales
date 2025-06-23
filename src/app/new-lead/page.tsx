@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -29,7 +29,7 @@ import { useToast } from "@/hooks/use-toast";
 import { SidebarProvider, Sidebar, SidebarInset, SidebarHeader, SidebarContent, SidebarMenu, SidebarMenuItem, SidebarMenuButton } from '@/components/ui/sidebar';
 import { GoogleMap, useJsApiLoader, Marker } from '@react-google-maps/api';
 import { Skeleton } from '@/components/ui/skeleton';
-import { districts, branches } from '@/lib/data';
+import { districts } from '@/lib/data';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -41,8 +41,6 @@ const leadSchema = z.object({
   title: z.string().min(3, { message: 'Title must be at least 3 characters long.' }),
   description: z.string().min(10, { message: 'Description must be at least 10 characters long.' }),
   districtId: z.string().min(1, { message: 'Please select a district.' }),
-  branchId: z.string().min(1, { message: 'Please select a branch.' }),
-  officerId: z.string().min(1, { message: 'Please select an officer.' }),
   expectedSavings: z.coerce.number().min(0, "Expected savings must be a positive number."),
   lat: z.coerce.number().min(-90, "Invalid latitude").max(90, "Invalid latitude"),
   lng: z.coerce.number().min(-180, "Invalid longitude").max(180, "Invalid longitude"),
@@ -51,7 +49,6 @@ const leadSchema = z.object({
 
 
 export default function NewLeadPage() {
-  const [leads, setLeads] = useState<SalesLead[]>([]);
   const [searchAddress, setSearchAddress] = useState('');
   const { toast } = useToast();
   const router = useRouter();
@@ -61,14 +58,12 @@ export default function NewLeadPage() {
     googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "",
   });
 
-  const { register, handleSubmit, control, watch, reset, setValue, formState: { errors } } = useForm<z.infer<typeof leadSchema>>({
+  const { register, handleSubmit, control, watch, setValue, formState: { errors } } = useForm<z.infer<typeof leadSchema>>({
     resolver: zodResolver(leadSchema),
     defaultValues: {
         title: '',
         description: '',
         districtId: '',
-        branchId: '',
-        officerId: '',
         expectedSavings: 0,
         lat: 40.7128,
         lng: -74.0060,
@@ -76,21 +71,8 @@ export default function NewLeadPage() {
     }
   });
 
-  const selectedDistrictId = watch('districtId');
-  const selectedBranchId = watch('branchId');
   const lat = watch('lat');
   const lng = watch('lng');
-
-  const availableBranches = useMemo(() => {
-    if (!selectedDistrictId) return [];
-    return branches.filter(b => b.districtId === selectedDistrictId);
-  }, [selectedDistrictId]);
-
-  const availableOfficers = useMemo(() => {
-    if (!selectedBranchId) return [];
-    const branch = branches.find(b => b.id === selectedBranchId);
-    return branch ? branch.officers : [];
-  }, [selectedBranchId]);
 
   const onSubmit = (data: z.infer<typeof leadSchema>) => {
     const newLead: SalesLead = {
@@ -99,8 +81,6 @@ export default function NewLeadPage() {
       description: data.description,
       status: 'New',
       districtId: data.districtId,
-      branchId: data.branchId,
-      officerId: data.officerId,
       location: { lat: data.lat, lng: data.lng },
       expectedSavings: data.expectedSavings,
       updates: [],
@@ -118,7 +98,7 @@ export default function NewLeadPage() {
         title: "Lead Created",
         description: `New lead "${data.title}" has been successfully created.`,
     });
-    router.push('/');
+    router.push('/district-assignments');
   };
 
   const handleMapClick = (event: google.maps.MapMouseEvent) => {
@@ -174,10 +154,14 @@ export default function NewLeadPage() {
         </SidebarHeader>
         <SidebarContent>
             <SidebarMenu>
+                 <SidebarMenuItem>
+                    <Link href="/"><SidebarMenuButton><Icons.clipboardList className="mr-2" />My Assignments</SidebarMenuButton></Link>
+                </SidebarMenuItem>
+                 <SidebarMenuItem>
+                    <Link href="/district-assignments"><SidebarMenuButton><Icons.building className="mr-2" />District View</SidebarMenuButton></Link>
+                </SidebarMenuItem>
                 <SidebarMenuItem>
-                    <Link href="/">
-                        <SidebarMenuButton><Icons.clipboardList className="mr-2" />Assignments</SidebarMenuButton>
-                    </Link>
+                    <Link href="/branch-assignments"><SidebarMenuButton><Icons.building2 className="mr-2" />Branch View</SidebarMenuButton></Link>
                 </SidebarMenuItem>
                  <SidebarMenuItem>
                     <SidebarMenuButton><Icons.settings className="mr-2" />Settings</SidebarMenuButton>
@@ -196,7 +180,7 @@ export default function NewLeadPage() {
                     <CardHeader>
                         <CardTitle>Lead Details</CardTitle>
                         <CardDescription>
-                            Fill in the details to create a new task for an officer.
+                            Fill in the details to create a new task. It can be assigned later.
                         </CardDescription>
                     </CardHeader>
                     <CardContent className="grid gap-6">
@@ -228,38 +212,6 @@ export default function NewLeadPage() {
                                     )}
                                 />
                                 {errors.districtId && <p className="text-red-500 text-xs mt-1">{errors.districtId.message}</p>}
-                            </div>
-                            <div className="grid gap-2">
-                                <Label htmlFor="branchId">Branch</Label>
-                                <Controller
-                                    control={control}
-                                    name="branchId"
-                                    render={({ field }) => (
-                                        <Select onValueChange={field.onChange} value={field.value} disabled={!selectedDistrictId}>
-                                            <SelectTrigger><SelectValue placeholder="Select a branch" /></SelectTrigger>
-                                            <SelectContent>
-                                                {availableBranches.map(branch => (<SelectItem key={branch.id} value={branch.id}>{branch.name}</SelectItem>))}
-                                            </SelectContent>
-                                        </Select>
-                                    )}
-                                />
-                                {errors.branchId && <p className="text-red-500 text-xs mt-1">{errors.branchId.message}</p>}
-                            </div>
-                            <div className="grid gap-2">
-                                <Label htmlFor="officerId">Officer</Label>
-                                <Controller
-                                    control={control}
-                                    name="officerId"
-                                    render={({ field }) => (
-                                        <Select onValueChange={field.onChange} value={field.value} disabled={!selectedBranchId}>
-                                        <SelectTrigger><SelectValue placeholder="Select an officer" /></SelectTrigger>
-                                        <SelectContent>
-                                            {availableOfficers.map(officer => (<SelectItem key={officer.id} value={officer.id}>{officer.name}</SelectItem>))}
-                                        </SelectContent>
-                                        </Select>
-                                    )}
-                                    />
-                                {errors.officerId && <p className="text-red-500 text-xs mt-1">{errors.officerId.message}</p>}
                             </div>
                         </div>
 

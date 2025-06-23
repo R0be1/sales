@@ -1,4 +1,4 @@
-import {ArrowRight, Check, ChevronsUpDown, Circle, Copy, Edit, ExternalLink, File, HelpCircle, Home, LayoutDashboard, Loader2, Mail, MapPin, MessageSquare, Moon, Plus, PlusCircle, Search, Server, Settings, Share2, Shield, Sun, Trash, User, X, Workflow, Calendar, ClipboardList} from 'lucide-react';
+import {ArrowRight, Check, ChevronsUpDown, Circle, Copy, Edit, ExternalLink, File, HelpCircle, Home, LayoutDashboard, Loader2, Mail, MapPin, MessageSquare, Moon, Plus, PlusCircle, Search, Server, Settings, Share2, Shield, Sun, Trash, User, X, Workflow, Calendar, ClipboardList, Building, Building2} from 'lucide-react';
 
 const Icons = {
   arrowRight: ArrowRight,
@@ -31,6 +31,8 @@ const Icons = {
   mapPin: MapPin,
   calendar: Calendar,
   clipboardList: ClipboardList,
+  building: Building,
+  building2: Building2,
 };
 
 export {Icons};

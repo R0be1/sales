@@ -22,8 +22,8 @@ export type SalesLead = {
   description: string;
   status: 'New' | 'Assigned' | 'In Progress' | 'Pending Closure' | 'Closed' | 'Reopened';
   districtId: string;
-  branchId: string;
-  officerId: string;
+  branchId?: string;
+  officerId?: string;
   location: {
     lat: number;
     lng: number;

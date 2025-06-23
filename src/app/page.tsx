@@ -54,7 +54,7 @@ const updateSchema = z.object({
     status: z.enum(['New', 'Assigned', 'In Progress', 'Pending Closure', 'Closed', 'Reopened'])
 })
 
-export default function SalesDashboard() {
+export default function OfficerDashboard() {
   const [leads, setLeads] = useState<SalesLead[]>([]);
   const [selectedLead, setSelectedLead] = useState<SalesLead | null>(null);
   const [isDetailsSheetOpen, setIsDetailsSheetOpen] = useState(false);
@@ -127,7 +127,7 @@ export default function SalesDashboard() {
       case 'Reopened': return 'secondary';
       case 'In Progress': return 'outline';
       case 'Pending Closure': return 'destructive';
-      case 'Closed': return 'default'; // A more neutral/final color could be used
+      case 'Closed': return 'default';
       default: return 'secondary';
     }
   };
@@ -138,10 +138,12 @@ export default function SalesDashboard() {
   
   const getAssigneeInfo = (lead: SalesLead) => {
       const district = districts.find(d => d.id === lead.districtId);
-      const branch = branches.find(b => b.id === lead.branchId);
-      const officer = branch?.officers.find(o => o.id === lead.officerId);
+      const branch = lead.branchId ? branches.find(b => b.id === lead.branchId) : undefined;
+      const officer = branch && lead.officerId ? branch.officers.find(o => o.id === lead.officerId) : undefined;
       return { district, branch, officer };
   }
+
+  const filteredLeads = useMemo(() => leads.filter(lead => !!lead.officerId), [leads]);
 
   return (
     <SidebarProvider>
@@ -155,7 +157,13 @@ export default function SalesDashboard() {
         <SidebarContent>
             <SidebarMenu>
                 <SidebarMenuItem>
-                    <SidebarMenuButton isActive><Icons.clipboardList className="mr-2" />Assignments</SidebarMenuButton>
+                    <Link href="/"><SidebarMenuButton isActive><Icons.clipboardList className="mr-2" />My Assignments</SidebarMenuButton></Link>
+                </SidebarMenuItem>
+                 <SidebarMenuItem>
+                    <Link href="/district-assignments"><SidebarMenuButton><Icons.building className="mr-2" />District View</SidebarMenuButton></Link>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                    <Link href="/branch-assignments"><SidebarMenuButton><Icons.building2 className="mr-2" />Branch View</SidebarMenuButton></Link>
                 </SidebarMenuItem>
                  <SidebarMenuItem>
                     <SidebarMenuButton><Icons.settings className="mr-2" />Settings</SidebarMenuButton>
@@ -167,14 +175,14 @@ export default function SalesDashboard() {
         <div className="flex min-h-screen w-full flex-col bg-muted/40">
           <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
             <div className="flex items-center">
-                <h1 className="text-lg font-semibold md:text-2xl">Lead Assignments</h1>
+                <h1 className="text-lg font-semibold md:text-2xl">My Assignments</h1>
             </div>
             <Card>
                 <CardHeader className="flex flex-row items-center justify-between">
                 <div>
-                    <CardTitle>Manage Assignments</CardTitle>
+                    <CardTitle>Manage Your Leads</CardTitle>
                     <CardDescription>
-                    An overview of all active and pending lead assignments.
+                      An overview of all leads assigned to you.
                     </CardDescription>
                 </div>
                 <Link href="/new-lead">
@@ -196,7 +204,7 @@ export default function SalesDashboard() {
                     </TableRow>
                     </TableHeader>
                     <TableBody>
-                    {leads.map((lead) => {
+                    {filteredLeads.map((lead) => {
                         const { officer, branch, district } = getAssigneeInfo(lead);
                         return (
                             <TableRow key={lead.id}>
@@ -215,7 +223,7 @@ export default function SalesDashboard() {
                                     </a>
                                 </TableCell>
                                 <TableCell>{format(lead.createdAt, "PPP")}</TableCell>
-                                <TableCell>{format(lead.deadline, "PPP")}</TableCell>
+                                <TableCell>{lead.deadline ? format(new Date(lead.deadline), "PPP") : 'N/A'}</TableCell>
                                 <TableCell><Button variant="outline" size="sm" onClick={() => handleViewDetails(lead)}>Details</Button></TableCell>
                             </TableRow>
                         );
@@ -241,11 +249,11 @@ export default function SalesDashboard() {
                      <div className="grid grid-cols-2 gap-4 text-sm">
                         <div>
                             <p className="font-medium">Assignee</p>
-                            <p className="text-muted-foreground">{getAssigneeInfo(selectedLead).officer?.name}</p>
+                            <p className="text-muted-foreground">{getAssigneeInfo(selectedLead).officer?.name || 'Unassigned'}</p>
                         </div>
                         <div>
                             <p className="font-medium">Deadline</p>
-                            <p className="text-muted-foreground">{format(selectedLead.deadline, "PPP")}</p>
+                            <p className="text-muted-foreground">{selectedLead.deadline ? format(new Date(selectedLead.deadline), "PPP") : 'N/A'}</p>
                         </div>
                         <div>
                             <p className="font-medium">Savings Target</p>
@@ -263,7 +271,7 @@ export default function SalesDashboard() {
                             <div className="space-y-4">
                                 {selectedLead.updates.map((update, index) => (
                                     <div key={index} className="text-sm">
-                                        <p className="font-medium">{update.author} <span className="text-muted-foreground text-xs">on {format(update.timestamp, "PPp")}</span></p>
+                                        <p className="font-medium">{update.author} <span className="text-muted-foreground text-xs">on {update.timestamp ? format(new Date(update.timestamp), "PPp") : ''}</span></p>
                                         <p className="text-muted-foreground">{update.text}</p>
                                     </div>
                                 ))}
