@@ -67,8 +67,8 @@ export default function SalesDashboard() {
         leadsData = JSON.parse(storedLeadsJSON).map((lead: any) => ({
             ...lead,
             createdAt: new Date(lead.createdAt),
-            deadline: new Date(lead.deadline),
-            updates: lead.updates.map((update: any) => ({
+            deadline: lead.deadline ? new Date(lead.deadline) : new Date(new Date().setDate(new Date().getDate() + 7)),
+            updates: (lead.updates || []).map((update: any) => ({
                 ...update,
                 timestamp: new Date(update.timestamp),
             })),
