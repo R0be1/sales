@@ -24,9 +24,12 @@ import { initialLeads, districts, branches } from '@/lib/data';
 import { SidebarProvider, Sidebar, SidebarInset, SidebarHeader, SidebarContent, SidebarMenu, SidebarMenuItem, SidebarMenuButton } from '@/components/ui/sidebar';
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 export default function DashboardPage() {
   const [leads, setLeads] = useState<SalesLead[]>([]);
+  const [selectedDistrict, setSelectedDistrict] = useState('all');
+  const [selectedBranch, setSelectedBranch] = useState('all');
 
   useEffect(() => {
     const storedLeadsJSON = localStorage.getItem('salesLeads');
@@ -48,26 +51,45 @@ export default function DashboardPage() {
     setLeads(leadsData);
   }, []);
 
+  useEffect(() => {
+    setSelectedBranch('all');
+  }, [selectedDistrict]);
+
   const dashboardStats = useMemo(() => {
-    const totalLeads = leads.length;
-    const totalExpectedSavings = leads.reduce((acc, lead) => acc + lead.expectedSavings, 0);
-    const totalGeneratedSavings = leads.reduce((acc, lead) => {
+    const filteredLeads = leads.filter(lead => {
+        const districtMatch = selectedDistrict === 'all' || lead.districtId === selectedDistrict;
+        const branchMatch = selectedBranch === 'all' || lead.branchId === selectedBranch;
+        return districtMatch && branchMatch;
+    });
+
+    const totalLeads = filteredLeads.length;
+    const totalExpectedSavings = filteredLeads.reduce((acc, lead) => acc + lead.expectedSavings, 0);
+    const totalGeneratedSavings = filteredLeads.reduce((acc, lead) => {
         const leadSavings = lead.updates.reduce((s, u) => s + (u.generatedSavings || 0), 0);
         return acc + leadSavings;
     }, 0);
     const overallAchievement = totalExpectedSavings > 0 ? (totalGeneratedSavings / totalExpectedSavings) * 100 : 0;
-    const closedLeads = leads.filter(l => l.status === 'Closed').length;
+    const closedLeads = filteredLeads.filter(l => l.status === 'Closed').length;
     const successRate = totalLeads > 0 ? (closedLeads / totalLeads) * 100 : 0;
 
-    const leadsByStatus = leads.reduce((acc, lead) => {
+    const leadsByStatus = filteredLeads.reduce((acc, lead) => {
         acc[lead.status] = (acc[lead.status] || 0) + 1;
         return acc;
     }, {} as Record<SalesLead['status'], number>);
     
     const statusChartData = Object.entries(leadsByStatus).map(([status, count]) => ({ status, count }));
 
-    const performanceByDistrict = districts.map(district => {
-        const districtLeads = leads.filter(l => l.districtId === district.id);
+    const displayedDistricts = districts.filter(d => selectedDistrict === 'all' || d.id === selectedDistrict);
+
+    const displayedBranches = branches.filter(b => {
+        const districtMatch = selectedDistrict === 'all' || b.districtId === selectedDistrict;
+        const branchMatch = selectedBranch === 'all' || b.id === selectedBranch;
+        return districtMatch && branchMatch;
+    });
+
+
+    const performanceByDistrict = displayedDistricts.map(district => {
+        const districtLeads = filteredLeads.filter(l => l.districtId === district.id);
         const expected = districtLeads.reduce((acc, lead) => acc + lead.expectedSavings, 0);
         const generated = districtLeads.reduce((acc, lead) => acc + lead.updates.reduce((s, u) => s + (u.generatedSavings || 0), 0), 0);
         const achievement = expected > 0 ? Math.min(100, (generated / expected) * 100) : 0;
@@ -80,8 +102,8 @@ export default function DashboardPage() {
         }
     });
 
-    const performanceByBranch = branches.map(branch => {
-      const branchLeads = leads.filter(l => l.branchId === branch.id);
+    const performanceByBranch = displayedBranches.map(branch => {
+      const branchLeads = filteredLeads.filter(l => l.branchId === branch.id);
       const expected = branchLeads.reduce((acc, lead) => acc + lead.expectedSavings, 0);
       const generated = branchLeads.reduce((acc, lead) => acc + lead.updates.reduce((s, u) => s + (u.generatedSavings || 0), 0), 0);
       const achievement = expected > 0 ? Math.min(100, (generated / expected) * 100) : 0;
@@ -106,7 +128,7 @@ export default function DashboardPage() {
       performanceByDistrict,
       performanceByBranch,
     };
-  }, [leads]);
+  }, [leads, selectedDistrict, selectedBranch]);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
@@ -146,6 +168,32 @@ export default function DashboardPage() {
           <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
             <div className="flex items-center">
               <h1 className="text-lg font-semibold md:text-2xl">Sales Dashboard</h1>
+               <div className="ml-auto flex items-center gap-4">
+                    <Select value={selectedDistrict} onValueChange={setSelectedDistrict}>
+                        <SelectTrigger className="w-[180px]">
+                            <SelectValue placeholder="Filter by District" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">All Districts</SelectItem>
+                            {districts.map(d => (
+                                <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                    <Select value={selectedBranch} onValueChange={setSelectedBranch}>
+                        <SelectTrigger className="w-[180px]">
+                            <SelectValue placeholder="Filter by Branch" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">All Branches</SelectItem>
+                            {branches
+                                .filter(b => selectedDistrict === 'all' || b.districtId === selectedDistrict)
+                                .map(b => (
+                                    <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
             </div>
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                 <Card>
