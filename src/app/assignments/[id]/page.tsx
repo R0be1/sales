@@ -35,6 +35,7 @@ import { format } from "date-fns";
 import { SidebarProvider, Sidebar, SidebarInset, SidebarHeader, SidebarContent, SidebarMenu, SidebarMenuItem, SidebarMenuButton } from '@/components/ui/sidebar';
 import { districts, branches, leadStatusOptions, initialLeads } from '@/lib/data';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Progress } from '@/components/ui/progress';
 
 const updateSchema = z.object({
     updateText: z.string().min(5, { message: "Update must be at least 5 characters." }),
@@ -158,6 +159,8 @@ export default function AssignmentDetailPage({ params }: { params: { id: string 
   }
 
   const totalGeneratedSavings = lead?.updates.reduce((acc, u) => acc + (u.generatedSavings || 0), 0) || 0;
+  const achievementPercentage = (lead && lead.expectedSavings > 0) ? Math.min(100, (totalGeneratedSavings / lead.expectedSavings) * 100) : 0;
+
 
   return (
     <SidebarProvider>
@@ -218,7 +221,7 @@ export default function AssignmentDetailPage({ params }: { params: { id: string 
                 </CardHeader>
                 <CardContent className="space-y-6">
                     <Separator />
-                     <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
+                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                         <div>
                             <p className="font-medium">Assignee</p>
                             <p className="text-muted-foreground">{getAssigneeInfo(lead).officer?.name || 'Unassigned'}</p>
@@ -228,16 +231,16 @@ export default function AssignmentDetailPage({ params }: { params: { id: string 
                             <p className="text-muted-foreground">{lead.deadline ? format(new Date(lead.deadline), "PPP") : 'N/A'}</p>
                         </div>
                         <div>
-                            <p className="font-medium">Savings Target</p>
-                            <p className="text-muted-foreground">{formatCurrency(lead.expectedSavings)}</p>
-                        </div>
-                         <div>
-                            <p className="font-medium">Total Generated</p>
-                            <p className="text-primary font-semibold">{formatCurrency(totalGeneratedSavings)}</p>
-                        </div>
-                        <div>
                             <p className="font-medium">Status</p>
                             <Badge variant={getStatusBadgeVariant(lead.status)}>{lead.status}</Badge>
+                        </div>
+                        <div className="col-span-2 md:col-span-1">
+                            <p className="font-medium">Savings Progress ({achievementPercentage.toFixed(0)}%)</p>
+                            <Progress value={achievementPercentage} className="my-1 h-2" />
+                            <div className="flex justify-between text-xs font-medium">
+                                <span className="text-primary">{formatCurrency(totalGeneratedSavings)}</span>
+                                <span className="text-muted-foreground">/ {formatCurrency(lead.expectedSavings)}</span>
+                            </div>
                         </div>
                     </div>
                     <Separator />

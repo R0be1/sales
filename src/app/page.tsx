@@ -25,6 +25,7 @@ import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { SidebarProvider, Sidebar, SidebarInset, SidebarHeader, SidebarContent, SidebarMenu, SidebarMenuItem, SidebarMenuButton } from '@/components/ui/sidebar';
 import { districts, branches, initialLeads } from '@/lib/data';
+import { Progress } from '@/components/ui/progress';
 
 export default function OfficerDashboard() {
   const [leads, setLeads] = useState<SalesLead[]>([]);
@@ -125,7 +126,7 @@ export default function OfficerDashboard() {
                         <TableHead>Lead Title</TableHead>
                         <TableHead>Status</TableHead>
                         <TableHead>Assigned To</TableHead>
-                        <TableHead>Savings Target</TableHead>
+                        <TableHead>Savings Progress</TableHead>
                         <TableHead>Location</TableHead>
                         <TableHead>Created At</TableHead>
                         <TableHead>Deadline</TableHead>
@@ -135,12 +136,18 @@ export default function OfficerDashboard() {
                     <TableBody>
                     {filteredLeads.map((lead) => {
                         const { officer, branch, district } = getAssigneeInfo(lead);
+                        const totalGeneratedSavings = lead.updates.reduce((acc, update) => acc + (update.generatedSavings || 0), 0);
+                        const achievementPercentage = lead.expectedSavings > 0 ? Math.min(100, (totalGeneratedSavings / lead.expectedSavings) * 100) : 0;
                         return (
                             <TableRow key={lead.id}>
                                 <TableCell className="font-medium">{lead.title}</TableCell>
                                 <TableCell><Badge variant={getStatusBadgeVariant(lead.status)}>{lead.status}</Badge></TableCell>
                                 <TableCell>{officer?.name || 'N/A'}, {branch?.name || 'N/A'}, {district?.name || 'N/A'}</TableCell>
-                                <TableCell>{formatCurrency(lead.expectedSavings)}</TableCell>
+                                <TableCell>
+                                    <div className="font-medium">{formatCurrency(lead.expectedSavings)} <span className="text-xs text-muted-foreground">Target</span></div>
+                                    <Progress value={achievementPercentage} className="mt-1 h-2" />
+                                    <div className="text-xs text-muted-foreground">{achievementPercentage.toFixed(0)}% achieved</div>
+                                </TableCell>
                                 <TableCell>
                                     <a 
                                         href={`https://www.google.com/maps/search/?api=1&query=${lead.location.lat},${lead.location.lng}`}
