@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -35,16 +35,8 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
-
-// Leaflet imports
-import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-leaflet';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
-
-// This is a workaround for a known issue with Leaflet and Next.js
-import iconRetinaUrl from 'leaflet/dist/images/marker-icon-2x.png';
-import iconUrl from 'leaflet/dist/images/marker-icon.png';
-import shadowUrl from 'leaflet/dist/images/marker-shadow.png';
+import dynamic from 'next/dynamic';
+import type L from 'leaflet';
 
 
 const leadSchema = z.object({
@@ -62,25 +54,12 @@ export default function NewLeadPage() {
   const [searchAddress, setSearchAddress] = useState('');
   const { toast } = useToast();
   const router = useRouter();
-  const [isClient, setIsClient] = useState(false)
 
-  // This useEffect ensures the component only renders the map on the client side
-  useEffect(() => {
-    setIsClient(true)
-  }, [])
+  const LeadMap = useMemo(() => dynamic(() => import('@/components/lead-map'), { 
+      loading: () => <Skeleton className="h-full w-full" />,
+      ssr: false 
+  }), []);
   
-  // This useEffect is a workaround for a known issue with Leaflet icons in Next.js
-  useEffect(() => {
-    if (isClient) {
-      delete (L.Icon.Default.prototype as any)._getIconUrl;
-      L.Icon.Default.mergeOptions({
-        iconRetinaUrl: iconRetinaUrl.src,
-        iconUrl: iconUrl.src,
-        shadowUrl: shadowUrl.src,
-      });
-    }
-  }, [isClient]);
-
   const { register, handleSubmit, control, watch, setValue, formState: { errors } } = useForm<z.infer<typeof leadSchema>>({
     resolver: zodResolver(leadSchema),
     defaultValues: {
@@ -124,21 +103,10 @@ export default function NewLeadPage() {
     router.push('/district-assignments');
   };
 
-  function MapEvents() {
-    useMapEvents({
-      click: (e) => {
-        const { lat, lng } = e.latlng;
-        setValue('lat', lat, { shouldValidate: true });
-        setValue('lng', lng, { shouldValidate: true });
-      },
-    });
-    return null;
-  }
-
-  function ChangeView({ center, zoom }: {center: [number, number], zoom: number}) {
-      const map = useMap();
-      map.setView(center, zoom);
-      return null;
+  const handleMapClick = (latlng: L.LatLng) => {
+    const { lat, lng } = latlng;
+    setValue('lat', lat, { shouldValidate: true });
+    setValue('lng', lng, { shouldValidate: true });
   }
 
   const handleAddressSearch = async () => {
@@ -315,19 +283,7 @@ export default function NewLeadPage() {
                                 <Button type="button" onClick={handleAddressSearch}>Search</Button>
                             </div>
                             <div className="h-64 w-full rounded-md border mt-2">
-                                {isClient ? (
-                                    <MapContainer center={[lat, lng]} zoom={12} style={{ height: '100%', width: '100%', borderRadius: 'inherit' }}>
-                                        <ChangeView center={[lat, lng]} zoom={12} />
-                                        <TileLayer
-                                            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                                            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                                        />
-                                        <Marker position={[lat, lng]} />
-                                        <MapEvents />
-                                    </MapContainer>
-                                ) : (
-                                    <Skeleton className="h-full w-full" />
-                                )}
+                                <LeadMap lat={lat} lng={lng} onMapClick={handleMapClick} />
                             </div>
                             <div className="text-xs text-muted-foreground mt-1">
                                 Search for an address or click on the map to set a location.
