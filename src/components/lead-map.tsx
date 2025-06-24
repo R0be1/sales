@@ -1,8 +1,8 @@
 
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
-import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-leaflet';
+import { useEffect, useState, useMemo, useRef } from 'react';
+import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
@@ -27,16 +27,13 @@ function MapEvents({ onMapClick }: { onMapClick: (latlng: L.LatLng) => void }) {
     return null;
 }
 
-// Component to update the map's view when the center coordinates change
-function ChangeView({ center, zoom }: {center: [number, number], zoom: number}) {
-    const map = useMap();
-    useEffect(() => {
-        map.setView(center, zoom);
-    }, [center, zoom, map]);
-    return null;
-}
 
 const LeadMap = ({ lat, lng, onMapClick }: LeadMapProps) => {
+    const mapRef = useRef<L.Map | null>(null);
+    // Store the initial center to prevent the MapContainer from re-rendering with a new center prop.
+    const [initialCenter] = useState<[number, number]>([lat, lng]);
+    const position: [number, number] = [lat, lng];
+
     // Workaround for a known issue with Leaflet icons in Next.js
     useEffect(() => {
         delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -46,20 +43,25 @@ const LeadMap = ({ lat, lng, onMapClick }: LeadMapProps) => {
             shadowUrl: shadowUrl.src,
         });
     }, []);
-
-    // Store the initial center to prevent the MapContainer from re-rendering with a new center prop.
-    // This is crucial to prevent the "Map container is already initialized" error.
-    const [initialCenter] = useState<[number, number]>([lat, lng]);
     
-    // The current position for the marker and for programmatic view changes.
-    const position: [number, number] = [lat, lng];
+    // Update map view programmatically when position changes, using a ref to the map instance.
+    useEffect(() => {
+        if (mapRef.current) {
+            mapRef.current.setView(position, mapRef.current.getZoom());
+        }
+    }, [position]);
 
-    // Memoize the style object to prevent unnecessary re-renders.
     const mapStyle = useMemo(() => ({ height: '100%', width: '100%', borderRadius: 'inherit' }), []);
 
     return (
-        <MapContainer center={initialCenter} zoom={12} style={mapStyle}>
-            <ChangeView center={position} zoom={12} />
+        <MapContainer 
+            center={initialCenter} 
+            zoom={12} 
+            style={mapStyle}
+            whenReady={(map) => {
+                mapRef.current = map.target;
+            }}
+        >
             <TileLayer
                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                 attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
