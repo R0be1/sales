@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -27,7 +27,6 @@ import { Icons } from '@/components/icons';
 import type { SalesLead } from '@/lib/types';
 import { useToast } from "@/hooks/use-toast";
 import { SidebarProvider, Sidebar, SidebarInset, SidebarHeader, SidebarContent, SidebarMenu, SidebarMenuItem, SidebarMenuButton } from '@/components/ui/sidebar';
-import { GoogleMap, useJsApiLoader, Marker } from '@react-google-maps/api';
 import { Skeleton } from '@/components/ui/skeleton';
 import { districts } from '@/lib/data';
 import { useRouter } from 'next/navigation';
@@ -36,6 +35,17 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
+
+// Leaflet imports
+import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-leaflet';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
+
+// This is a workaround for a known issue with Leaflet and Next.js
+import iconRetinaUrl from 'leaflet/dist/images/marker-icon-2x.png';
+import iconUrl from 'leaflet/dist/images/marker-icon.png';
+import shadowUrl from 'leaflet/dist/images/marker-shadow.png';
+
 
 const leadSchema = z.object({
   title: z.string().min(3, { message: 'Title must be at least 3 characters long.' }),
@@ -52,11 +62,24 @@ export default function NewLeadPage() {
   const [searchAddress, setSearchAddress] = useState('');
   const { toast } = useToast();
   const router = useRouter();
+  const [isClient, setIsClient] = useState(false)
 
-  const { isLoaded } = useJsApiLoader({
-    id: 'google-map-script',
-    googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "",
-  });
+  // This useEffect ensures the component only renders the map on the client side
+  useEffect(() => {
+    setIsClient(true)
+  }, [])
+  
+  // This useEffect is a workaround for a known issue with Leaflet icons in Next.js
+  useEffect(() => {
+    if (isClient) {
+      delete (L.Icon.Default.prototype as any)._getIconUrl;
+      L.Icon.Default.mergeOptions({
+        iconRetinaUrl: iconRetinaUrl.src,
+        iconUrl: iconUrl.src,
+        shadowUrl: shadowUrl.src,
+      });
+    }
+  }, [isClient]);
 
   const { register, handleSubmit, control, watch, setValue, formState: { errors } } = useForm<z.infer<typeof leadSchema>>({
     resolver: zodResolver(leadSchema),
@@ -101,17 +124,24 @@ export default function NewLeadPage() {
     router.push('/district-assignments');
   };
 
-  const handleMapClick = (event: google.maps.MapMouseEvent) => {
-    if (event.latLng) {
-      const newLat = event.latLng.lat();
-      const newLng = event.latLng.lng();
-      setValue('lat', newLat, { shouldValidate: true });
-      setValue('lng', newLng, { shouldValidate: true });
-    }
-  };
+  function MapEvents() {
+    useMapEvents({
+      click: (e) => {
+        const { lat, lng } = e.latlng;
+        setValue('lat', lat, { shouldValidate: true });
+        setValue('lng', lng, { shouldValidate: true });
+      },
+    });
+    return null;
+  }
 
-  const handleAddressSearch = () => {
-    if (!isLoaded) return;
+  function ChangeView({ center, zoom }: {center: [number, number], zoom: number}) {
+      const map = useMap();
+      map.setView(center, zoom);
+      return null;
+  }
+
+  const handleAddressSearch = async () => {
     if (!searchAddress) {
       toast({
         title: "Address missing",
@@ -120,27 +150,35 @@ export default function NewLeadPage() {
       });
       return;
     }
+    
+    try {
+        const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchAddress)}`);
+        const data = await response.json();
 
-    const geocoder = new window.google.maps.Geocoder();
-    geocoder.geocode({ address: searchAddress }, (results, status) => {
-      if (status === 'OK' && results && results[0]) {
-        const location = results[0].geometry.location;
-        const newLat = location.lat();
-        const newLng = location.lng();
-        setValue('lat', newLat, { shouldValidate: true });
-        setValue('lng', newLng, { shouldValidate: true });
+        if (data && data.length > 0) {
+            const { lat: newLatStr, lon: newLngStr, display_name } = data[0];
+            const newLat = parseFloat(newLatStr);
+            const newLng = parseFloat(newLngStr);
+            setValue('lat', newLat, { shouldValidate: true });
+            setValue('lng', newLng, { shouldValidate: true });
+            toast({
+                title: "Location found",
+                description: `Map updated to ${display_name}`,
+            });
+        } else {
+            toast({
+                title: "Location not found",
+                description: `Could not find a location for "${searchAddress}".`,
+                variant: "destructive",
+            });
+        }
+    } catch(error) {
         toast({
-            title: "Location found",
-            description: `Map updated to ${results[0].formatted_address}`,
-        })
-      } else {
-        toast({
-          title: "Location not found",
-          description: `Could not find a location for "${searchAddress}". Status: ${status}`,
+          title: "Search Error",
+          description: `An error occurred while searching. Please try again.`,
           variant: "destructive",
         });
-      }
-    });
+    }
   };
 
   return (
@@ -277,15 +315,16 @@ export default function NewLeadPage() {
                                 <Button type="button" onClick={handleAddressSearch}>Search</Button>
                             </div>
                             <div className="h-64 w-full rounded-md border mt-2">
-                                {isLoaded ? (
-                                    <GoogleMap
-                                        mapContainerStyle={{ width: '100%', height: '100%', borderRadius: 'inherit' }}
-                                        center={{ lat, lng }}
-                                        zoom={12}
-                                        onClick={handleMapClick}
-                                    >
-                                        <Marker position={{ lat, lng }} />
-                                    </GoogleMap>
+                                {isClient ? (
+                                    <MapContainer center={[lat, lng]} zoom={12} style={{ height: '100%', width: '100%', borderRadius: 'inherit' }}>
+                                        <ChangeView center={[lat, lng]} zoom={12} />
+                                        <TileLayer
+                                            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                                            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                                        />
+                                        <Marker position={[lat, lng]} />
+                                        <MapEvents />
+                                    </MapContainer>
                                 ) : (
                                     <Skeleton className="h-full w-full" />
                                 )}
