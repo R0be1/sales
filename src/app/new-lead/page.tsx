@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -49,16 +49,16 @@ const leadSchema = z.object({
   deadline: z.date({ required_error: 'A deadline date is required.' }),
 });
 
+const LeadMap = dynamic(() => import('@/components/lead-map'), { 
+    loading: () => <Skeleton className="h-full w-full" />,
+    ssr: false 
+});
+
 
 export default function NewLeadPage() {
   const [searchAddress, setSearchAddress] = useState('');
   const { toast } = useToast();
   const router = useRouter();
-
-  const LeadMap = useMemo(() => dynamic(() => import('@/components/lead-map'), { 
-      loading: () => <Skeleton className="h-full w-full" />,
-      ssr: false 
-  }), []);
   
   const { register, handleSubmit, control, watch, setValue, formState: { errors } } = useForm<z.infer<typeof leadSchema>>({
     resolver: zodResolver(leadSchema),
@@ -103,13 +103,13 @@ export default function NewLeadPage() {
     router.push('/district-assignments');
   };
 
-  const handleMapClick = (latlng: L.LatLng) => {
+  const handleMapClick = useCallback((latlng: L.LatLng) => {
     const { lat, lng } = latlng;
     setValue('lat', lat, { shouldValidate: true });
     setValue('lng', lng, { shouldValidate: true });
-  }
+  }, [setValue]);
 
-  const handleAddressSearch = async () => {
+  const handleAddressSearch = useCallback(async () => {
     if (!searchAddress) {
       toast({
         title: "Address missing",
@@ -147,7 +147,7 @@ export default function NewLeadPage() {
           variant: "destructive",
         });
     }
-  };
+  }, [searchAddress, setValue, toast]);
 
   return (
     <SidebarProvider>
