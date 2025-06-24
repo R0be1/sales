@@ -120,9 +120,6 @@ export default function OffsiteReportsPage() {
                 <SidebarMenuItem>
                     <Link href="/offsite-reports"><SidebarMenuButton isActive><Icons.alertTriangle className="mr-2" />Off-site Reports</SidebarMenuButton></Link>
                 </SidebarMenuItem>
-                <SidebarMenuItem>
-                    <SidebarMenuButton><Icons.settings className="mr-2" />Settings</SidebarMenuButton>
-                </SidebarMenuItem>
             </SidebarMenu>
         </SidebarContent>
       </Sidebar>

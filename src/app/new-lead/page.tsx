@@ -99,7 +99,7 @@ export default function NewLeadPage() {
     }, 500); // Debounce search by 500ms
 
     return () => clearTimeout(timer);
-  }, [searchQuery, selectedLocationName, methods, toast]);
+  }, [searchQuery, selectedLocationName, methods]);
 
   const handleSelectLocation = (location: any) => {
     methods.setValue('lat', parseFloat(location.lat), { shouldValidate: true });
@@ -161,9 +161,6 @@ export default function NewLeadPage() {
                 </SidebarMenuItem>
                  <SidebarMenuItem>
                     <Link href="/offsite-reports"><SidebarMenuButton><Icons.alertTriangle className="mr-2" />Off-site Reports</SidebarMenuButton></Link>
-                </SidebarMenuItem>
-                <SidebarMenuItem>
-                    <SidebarMenuButton><Icons.settings className="mr-2" />Settings</SidebarMenuButton>
                 </SidebarMenuItem>
             </SidebarMenu>
         </SidebarContent>
