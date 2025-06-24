@@ -34,7 +34,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 
 const leadSchema = z.object({
@@ -70,38 +70,47 @@ export default function NewLeadPage() {
 
   const { control, handleSubmit, formState: { errors } } = methods;
 
-  const handleSearch = async () => {
-    if (!searchQuery) return;
-    setIsSearching(true);
-    setSearchResults([]);
-    setSelectedLocationName('');
-    methods.setValue('lat', undefined as any, { shouldValidate: true });
-    methods.setValue('lng', undefined as any);
-    try {
-      const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}`);
-      if (!response.ok) {
-        throw new Error('Network response was not ok');
-      }
-      const data = await response.json();
-      setSearchResults(data);
-      if(data.length === 0) {
+  useEffect(() => {
+    if (searchQuery.length < 3 || searchQuery === selectedLocationName) {
+      setSearchResults([]);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      setIsSearching(true);
+      // Clear previous selection since we are starting a new search
+      if(selectedLocationName) setSelectedLocationName('');
+      methods.setValue('lat', undefined as any, { shouldValidate: true });
+      methods.setValue('lng', undefined as any);
+
+      try {
+        const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}`);
+        if (!response.ok) {
+          throw new Error('Network response was not ok');
+        }
+        const data = await response.json();
+        setSearchResults(data);
+        if (data.length === 0) {
+          toast({
+            title: "No Results",
+            description: "No locations found for your query. Try being more specific.",
+            variant: "destructive",
+          })
+        }
+      } catch (error) {
         toast({
-          title: "No Results",
-          description: "No locations found for your query. Try being more specific.",
-          variant: "destructive",
-        })
-      }
-    } catch (error) {
-      toast({
           title: "Search Error",
           description: "Could not fetch location data. Please try again later.",
           variant: "destructive",
-      });
-      console.error("Failed to fetch location data:", error);
-    } finally {
-      setIsSearching(false);
-    }
-  };
+        });
+        console.error("Failed to fetch location data:", error);
+      } finally {
+        setIsSearching(false);
+      }
+    }, 500); // Debounce search by 500ms
+
+    return () => clearTimeout(timer);
+  }, [searchQuery, selectedLocationName, methods, toast]);
 
   const handleSelectLocation = (location: any) => {
     methods.setValue('lat', parseFloat(location.lat), { shouldValidate: true });
@@ -257,23 +266,15 @@ export default function NewLeadPage() {
 
                         <div className="grid gap-2">
                             <Label htmlFor="location-search">Location</Label>
-                            <div className="flex gap-2">
+                            <div className="relative">
                                 <Input
                                     id="location-search"
-                                    placeholder="Search for an address..."
+                                    placeholder="Start typing an address to search..."
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value)}
-                                    onKeyDown={(e) => {
-                                        if (e.key === 'Enter') {
-                                            e.preventDefault();
-                                            handleSearch();
-                                        }
-                                    }}
+                                    autoComplete="off"
                                 />
-                                <Button type="button" onClick={handleSearch} disabled={isSearching} size="icon">
-                                    {isSearching ? <Icons.spinner className="animate-spin" /> : <Icons.search />}
-                                    <span className="sr-only">Search</span>
-                                </Button>
+                                {isSearching && <Icons.spinner className="animate-spin absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />}
                             </div>
                              {errors.lat && !selectedLocationName && <p className="text-red-500 text-xs mt-1">{errors.lat.message}</p>}
                             {searchResults.length > 0 && (
