@@ -1,7 +1,6 @@
 
 'use client';
 
-import { useState, useCallback } from 'react';
 import { useForm, Controller, FormProvider } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -28,7 +27,6 @@ import { Icons } from '@/components/icons';
 import type { SalesLead } from '@/lib/types';
 import { useToast } from "@/hooks/use-toast";
 import { SidebarProvider, Sidebar, SidebarInset, SidebarHeader, SidebarContent, SidebarMenu, SidebarMenuItem, SidebarMenuButton } from '@/components/ui/sidebar';
-import { Skeleton } from '@/components/ui/skeleton';
 import { districts } from '@/lib/data';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -36,8 +34,6 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
-import dynamic from 'next/dynamic';
-import type L from 'leaflet';
 
 
 const leadSchema = z.object({
@@ -50,14 +46,8 @@ const leadSchema = z.object({
   deadline: z.date({ required_error: 'A deadline date is required.' }),
 });
 
-const LeadMap = dynamic(() => import('@/components/lead-map'), { 
-    loading: () => <Skeleton className="h-full w-full" />,
-    ssr: false 
-});
-
 
 export default function NewLeadPage() {
-  const [searchAddress, setSearchAddress] = useState('');
   const { toast } = useToast();
   const router = useRouter();
   
@@ -74,10 +64,7 @@ export default function NewLeadPage() {
     }
   });
 
-  const { control, watch, setValue, handleSubmit, formState: { errors } } = methods;
-
-  const lat = watch('lat');
-  const lng = watch('lng');
+  const { control, handleSubmit, formState: { errors } } = methods;
 
   const onSubmit = (data: z.infer<typeof leadSchema>) => {
     const newLead: SalesLead = {
@@ -105,52 +92,6 @@ export default function NewLeadPage() {
     });
     router.push('/district-assignments');
   };
-
-  const handleMapClick = useCallback((latlng: L.LatLng) => {
-    const { lat, lng } = latlng;
-    setValue('lat', lat, { shouldValidate: true });
-    setValue('lng', lng, { shouldValidate: true });
-  }, [setValue]);
-
-  const handleAddressSearch = useCallback(async () => {
-    if (!searchAddress) {
-      toast({
-        title: "Address missing",
-        description: "Please enter an address to search for.",
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    try {
-        const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchAddress)}`);
-        const data = await response.json();
-
-        if (data && data.length > 0) {
-            const { lat: newLatStr, lon: newLngStr, display_name } = data[0];
-            const newLat = parseFloat(newLatStr);
-            const newLng = parseFloat(newLngStr);
-            setValue('lat', newLat, { shouldValidate: true });
-            setValue('lng', newLng, { shouldValidate: true });
-            toast({
-                title: "Location found",
-                description: `Map updated to ${display_name}`,
-            });
-        } else {
-            toast({
-                title: "Location not found",
-                description: `Could not find a location for "${searchAddress}".`,
-                variant: "destructive",
-            });
-        }
-    } catch(error) {
-        toast({
-          title: "Search Error",
-          description: `An error occurred while searching. Please try again.`,
-          variant: "destructive",
-        });
-    }
-  }, [searchAddress, setValue, toast]);
 
   return (
     <SidebarProvider>
@@ -269,33 +210,17 @@ export default function NewLeadPage() {
                             </div>
                         </div>
 
-                        <div className="grid gap-2">
-                            <Label>Location</Label>
-                            <div className="flex items-center gap-2">
-                                <Input
-                                    id="address-search"
-                                    placeholder="Type an address and click search"
-                                    value={searchAddress}
-                                    onChange={(e) => setSearchAddress(e.target.value)}
-                                     onKeyDown={(e) => {
-                                        if (e.key === 'Enter') {
-                                            e.preventDefault();
-                                            handleAddressSearch();
-                                        }
-                                    }}
-                                />
-                                <Button type="button" onClick={handleAddressSearch}>Search</Button>
+                        <div className="grid md:grid-cols-2 gap-4">
+                             <div className="grid gap-2">
+                                <Label htmlFor="lat">Latitude</Label>
+                                <Input id="lat" type="number" step="any" {...methods.register('lat')} />
+                                {errors.lat && <p className="text-red-500 text-xs mt-1">{errors.lat.message}</p>}
                             </div>
-                            <div className="h-64 w-full rounded-md border mt-2">
-                                <LeadMap lat={lat} lng={lng} onMapClick={handleMapClick} />
+                             <div className="grid gap-2">
+                                <Label htmlFor="lng">Longitude</Label>
+                                <Input id="lng" type="number" step="any" {...methods.register('lng')} />
+                                {errors.lng && <p className="text-red-500 text-xs mt-1">{errors.lng.message}</p>}
                             </div>
-                            <div className="text-xs text-muted-foreground mt-1">
-                                Search for an address or click on the map to set a location.
-                                <br/>
-                                Current: {lat.toFixed(4)}, {lng.toFixed(4)}
-                            </div>
-                            {errors.lat && <p className="text-red-500 text-xs mt-1">{errors.lat.message}</p>}
-                            {errors.lng && <p className="text-red-500 text-xs mt-1">{errors.lng.message}</p>}
                         </div>
                     </CardContent>
                     <CardFooter className="border-t px-6 py-4">

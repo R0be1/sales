@@ -6,11 +6,6 @@ import { MapContainer, TileLayer, Marker, useMap, useMapEvents } from 'react-lea
 import type L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
-// This is a workaround for a known issue with Leaflet and Next.js
-import iconRetinaUrl from 'leaflet/dist/images/marker-icon-2x.png';
-import iconUrl from 'leaflet/dist/images/marker-icon.png';
-import shadowUrl from 'leaflet/dist/images/marker-shadow.png';
-
 interface LeadMapProps {
     lat: number;
     lng: number;
@@ -46,16 +41,6 @@ const LeadMap = ({ lat, lng, onMapClick }: LeadMapProps) => {
     const [initialCenter] = useState<[number, number]>([lat, lng]);
     const position: [number, number] = [lat, lng];
 
-    // Workaround for a known issue with Leaflet icons in Next.js
-    useEffect(() => {
-        delete (L.Icon.Default.prototype as any)._getIconUrl;
-        L.Icon.Default.mergeOptions({
-            iconRetinaUrl: iconRetinaUrl.src,
-            iconUrl: iconUrl.src,
-            shadowUrl: shadowUrl.src,
-        });
-    }, []);
-    
     const mapStyle = useMemo(() => ({ height: '100%', width: '100%', borderRadius: 'inherit' }), []);
 
     return (
