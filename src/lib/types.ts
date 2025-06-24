@@ -20,7 +20,7 @@ export type SalesLead = {
   id: string;
   title: string;
   description: string;
-  status: 'New' | 'Assigned' | 'In Progress' | 'Pending Closure' | 'Closed' | 'Reopened';
+  status: 'New' | 'Assigned' | 'In Progress' | 'Pending Closure' | 'Pending District Approval' | 'Closed' | 'Reopened';
   districtId: string;
   branchId?: string;
   officerId?: string;

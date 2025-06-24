@@ -39,7 +39,7 @@ import { Progress } from '@/components/ui/progress';
 
 const updateSchema = z.object({
     updateText: z.string().min(5, { message: "Update must be at least 5 characters." }),
-    status: z.enum(['New', 'Assigned', 'In Progress', 'Pending Closure', 'Closed', 'Reopened']),
+    status: z.enum(['New', 'Assigned', 'In Progress', 'Pending Closure', 'Pending District Approval', 'Closed', 'Reopened']),
     generatedSavings: z.coerce.number().min(0, "Savings must be a positive number.").optional(),
 })
 
@@ -188,6 +188,7 @@ export default function AssignmentDetailPage({ params }: { params: { id: string 
     }
   }
 
+  const officerAllowedStatuses: SalesLead['status'][] = ['In Progress', 'Pending Closure'];
 
   const getStatusBadgeVariant = (status: SalesLead['status']): "default" | "secondary" | "destructive" | "outline" => {
     switch (status) {
@@ -196,6 +197,7 @@ export default function AssignmentDetailPage({ params }: { params: { id: string 
       case 'Reopened': return 'secondary';
       case 'In Progress': return 'outline';
       case 'Pending Closure': return 'destructive';
+      case 'Pending District Approval': return 'destructive';
       case 'Closed': return 'default';
       default: return 'secondary';
     }
@@ -214,7 +216,7 @@ export default function AssignmentDetailPage({ params }: { params: { id: string 
 
   const totalGeneratedSavings = lead?.updates.reduce((acc, u) => acc + (u.generatedSavings || 0), 0) || 0;
   const achievementPercentage = (lead && lead.expectedSavings > 0) ? Math.min(100, (totalGeneratedSavings / lead.expectedSavings) * 100) : 0;
-
+  const isPendingApproval = lead?.status === 'Pending Closure' || lead?.status === 'Pending District Approval' || lead?.status === 'Closed';
 
   return (
     <SidebarProvider>
@@ -360,7 +362,7 @@ export default function AssignmentDetailPage({ params }: { params: { id: string 
                         <h4 className="text-sm font-semibold">Add New Update</h4>
                          <div>
                             <Label htmlFor="updateText">Update Details</Label>
-                            <Textarea id="updateText" {...registerUpdate("updateText")} />
+                            <Textarea id="updateText" {...registerUpdate("updateText")} disabled={isPendingApproval} />
                             {updateErrors.updateText && <p className="text-red-500 text-xs mt-1">{updateErrors.updateText.message}</p>}
                          </div>
                          <div className="grid grid-cols-2 gap-4">
@@ -370,10 +372,14 @@ export default function AssignmentDetailPage({ params }: { params: { id: string 
                                     control={controlUpdate}
                                     name="status"
                                     render={({ field }) => (
-                                        <Select onValueChange={field.onChange} value={field.value}>
+                                        <Select onValueChange={field.onChange} value={field.value} disabled={isPendingApproval}>
                                             <SelectTrigger><SelectValue placeholder="Select a status" /></SelectTrigger>
                                             <SelectContent>
-                                                {leadStatusOptions.map(status => (<SelectItem key={status} value={status}>{status}</SelectItem>))}
+                                                {isPendingApproval ? (
+                                                    <SelectItem value={lead.status}>{lead.status}</SelectItem>
+                                                ) : (
+                                                    officerAllowedStatuses.map(status => (<SelectItem key={status} value={status}>{status}</SelectItem>))
+                                                )}
                                             </SelectContent>
                                         </Select>
                                     )}
@@ -382,7 +388,7 @@ export default function AssignmentDetailPage({ params }: { params: { id: string 
                             </div>
                              <div>
                                 <Label htmlFor="generatedSavings">Generated Savings (Optional)</Label>
-                                <Input id="generatedSavings" type="number" {...registerUpdate("generatedSavings")} />
+                                <Input id="generatedSavings" type="number" {...registerUpdate("generatedSavings")} disabled={isPendingApproval} />
                                 {updateErrors.generatedSavings && <p className="text-red-500 text-xs mt-1">{updateErrors.generatedSavings.message}</p>}
                              </div>
                          </div>
@@ -391,14 +397,15 @@ export default function AssignmentDetailPage({ params }: { params: { id: string 
                             <Input 
                                 id="attachment" 
                                 type="file" 
-                                onChange={(e) => setAttachmentFile(e.target.files ? e.target.files[0] : null)} 
+                                onChange={(e) => setAttachmentFile(e.target.files ? e.target.files[0] : null)}
+                                disabled={isPendingApproval}
                             />
                         </div>
                         <CardFooter className="px-0 pt-4">
                             <Button type="button" variant="outline" onClick={() => router.push('/')}>Cancel</Button>
-                            <Button type="submit" className="ml-auto" disabled={isVerifyingLocation}>
+                            <Button type="submit" className="ml-auto" disabled={isVerifyingLocation || isPendingApproval}>
                                 {isVerifyingLocation && <Icons.spinner className="mr-2 h-4 w-4 animate-spin" />}
-                                {isVerifyingLocation ? 'Verifying...' : 'Submit Update'}
+                                {isVerifyingLocation ? 'Verifying...' : (isPendingApproval ? 'Pending Approval' : 'Submit Update')}
                             </Button>
                         </CardFooter>
                      </form>

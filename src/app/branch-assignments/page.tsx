@@ -50,6 +50,8 @@ export default function BranchAssignmentsPage() {
   const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);
   const [assignmentNote, setAssignmentNote] = useState('');
   const [selectedOfficerId, setSelectedOfficerId] = useState('');
+  const [isReworkDialogOpen, setIsReworkDialogOpen] = useState(false);
+  const [reworkNote, setReworkNote] = useState('');
   const { toast } = useToast();
 
   useEffect(() => {
@@ -114,14 +116,53 @@ export default function BranchAssignmentsPage() {
     setIsAssignDialogOpen(false);
   };
 
-  const filteredLeads = useMemo(() => leads.filter(lead => lead.branchId && !lead.officerId), [leads]);
+  const updateLeadStatus = (leadId: string, status: SalesLead['status'], note?: string) => {
+    const updatedLeads = leads.map(lead => {
+      if (lead.id === leadId) {
+        const newUpdate = {
+          text: note || `Status changed to ${status} by Branch Manager.`,
+          timestamp: new Date(),
+          author: 'Branch Manager'
+        };
+        return { ...lead, status, updates: [...lead.updates, newUpdate] };
+      }
+      return lead;
+    });
+    setLeads(updatedLeads);
+    localStorage.setItem('salesLeads', JSON.stringify(updatedLeads));
+  };
 
-  const getBranchInfo = (branchId?: string) => {
-    if (!branchId) return { branchName: 'N/A', officers: [] };
-    const branch = branches.find(b => b.id === branchId);
+  const handleApprove = (leadId: string) => {
+    updateLeadStatus(leadId, 'Pending District Approval', 'Approved by Branch Manager. Forwarded for final approval.');
+    toast({ title: "Lead Approved", description: "Lead has been forwarded for final approval." });
+  };
+
+  const openReworkDialog = (lead: SalesLead) => {
+    setSelectedLead(lead);
+    setReworkNote('');
+    setIsReworkDialogOpen(true);
+  };
+
+  const handleConfirmRework = () => {
+    if (selectedLead && reworkNote) {
+      updateLeadStatus(selectedLead.id, 'Reopened', `Returned for rework: ${reworkNote}`);
+      toast({ title: "Lead Returned", description: "The lead has been returned to the officer for rework." });
+      setIsReworkDialogOpen(false);
+    } else {
+      toast({ title: "Note Required", description: "Please provide a reason for returning the lead.", variant: "destructive" });
+    }
+  };
+
+  const unassignedLeads = useMemo(() => leads.filter(lead => lead.branchId && !lead.officerId && lead.status === 'Assigned'), [leads]);
+  const pendingApprovalLeads = useMemo(() => leads.filter(lead => lead.officerId && lead.status === 'Pending Closure'), [leads]);
+  
+  const getAssigneeInfo = (lead: SalesLead) => {
+    const branch = branches.find(b => b.id === lead.branchId);
+    const officer = branch?.officers.find(o => o.id === lead.officerId);
     return {
       branchName: branch?.name || 'N/A',
-      officers: branch?.officers || []
+      officers: branch?.officers || [],
+      officerName: officer?.name || 'N/A'
     };
   }
   
@@ -162,52 +203,89 @@ export default function BranchAssignmentsPage() {
         <div className="flex min-h-screen w-full flex-col bg-muted/40">
           <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
             <div className="flex items-center">
-                <h1 className="text-lg font-semibold md:text-2xl">Branch Assignments</h1>
+                <h1 className="text-lg font-semibold md:text-2xl">Branch View</h1>
             </div>
-            <Card>
-                <CardHeader>
-                <div>
-                    <CardTitle>Assign Leads to Officers</CardTitle>
-                    <CardDescription>
-                      An overview of all unassigned leads in each branch.
-                    </CardDescription>
-                </div>
-                </CardHeader>
-                <CardContent>
-                <Table>
-                    <TableHeader>
-                    <TableRow>
-                        <TableHead>Lead Title</TableHead>
-                        <TableHead>Branch</TableHead>
-                        <TableHead>Created At</TableHead>
-                        <TableHead>Deadline</TableHead>
-                        <TableHead className="text-right">Action</TableHead>
-                    </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                    {filteredLeads.map((lead) => {
-                        const { branchName } = getBranchInfo(lead.branchId);
-                        return (
-                            <TableRow key={lead.id}>
-                                <TableCell className="font-medium">{lead.title}</TableCell>
-                                <TableCell>{branchName}</TableCell>
-                                <TableCell>{format(lead.createdAt, "PPP")}</TableCell>
-                                <TableCell>{lead.deadline ? format(new Date(lead.deadline), "PPP") : 'N/A'}</TableCell>
-                                <TableCell className="text-right">
-                                    <Button variant="outline" size="sm" onClick={() => openAssignDialog(lead)}>Assign</Button>
-                                </TableCell>
+            <div className="grid gap-6">
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Assign Leads to Officers</CardTitle>
+                        <CardDescription>An overview of all unassigned leads in your branch(es).</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                    <Table>
+                        <TableHeader>
+                        <TableRow>
+                            <TableHead>Lead Title</TableHead>
+                            <TableHead>Branch</TableHead>
+                            <TableHead>Deadline</TableHead>
+                            <TableHead className="text-right">Action</TableHead>
+                        </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                        {unassignedLeads.map((lead) => {
+                            const { branchName } = getAssigneeInfo(lead);
+                            return (
+                                <TableRow key={lead.id}>
+                                    <TableCell className="font-medium">{lead.title}</TableCell>
+                                    <TableCell>{branchName}</TableCell>
+                                    <TableCell>{lead.deadline ? format(new Date(lead.deadline), "PPP") : 'N/A'}</TableCell>
+                                    <TableCell className="text-right">
+                                        <Button variant="outline" size="sm" onClick={() => openAssignDialog(lead)}>Assign</Button>
+                                    </TableCell>
+                                </TableRow>
+                            );
+                        })}
+                        </TableBody>
+                    </Table>
+                    {unassignedLeads.length === 0 && (
+                        <div className="text-center p-8 text-muted-foreground">
+                            No new leads to assign.
+                        </div>
+                    )}
+                    </CardContent>
+                </Card>
+
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Leads Pending Branch Approval</CardTitle>
+                        <CardDescription>Review leads submitted for closure by officers.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Lead Title</TableHead>
+                                <TableHead>Officer</TableHead>
+                                <TableHead>Submitted On</TableHead>
+                                <TableHead className="text-right">Actions</TableHead>
                             </TableRow>
-                        );
-                    })}
-                    </TableBody>
-                </Table>
-                {filteredLeads.length === 0 && (
-                    <div className="text-center p-8 text-muted-foreground">
-                        No new leads to assign.
-                    </div>
-                )}
-                </CardContent>
-            </Card>
+                        </TableHeader>
+                        <TableBody>
+                        {pendingApprovalLeads.map((lead) => {
+                            const { officerName } = getAssigneeInfo(lead);
+                            const lastUpdate = lead.updates[lead.updates.length-1];
+                            return (
+                                <TableRow key={lead.id}>
+                                    <TableCell className="font-medium">{lead.title}</TableCell>
+                                    <TableCell>{officerName}</TableCell>
+                                    <TableCell>{lastUpdate ? format(lastUpdate.timestamp, "PPP") : 'N/A'}</TableCell>
+                                    <TableCell className="text-right space-x-2">
+                                        <Button variant="outline" size="sm" onClick={() => openReworkDialog(lead)}>Return</Button>
+                                        <Button size="sm" onClick={() => handleApprove(lead.id)}>Approve</Button>
+                                    </TableCell>
+                                </TableRow>
+                            );
+                        })}
+                        </TableBody>
+                    </Table>
+                    {pendingApprovalLeads.length === 0 && (
+                        <div className="text-center p-8 text-muted-foreground">
+                            No leads are pending your approval.
+                        </div>
+                    )}
+                    </CardContent>
+                </Card>
+            </div>
           </main>
         </div>
       </SidebarInset>
@@ -244,7 +322,7 @@ export default function BranchAssignmentsPage() {
                                 <SelectValue placeholder="Select an officer" />
                             </SelectTrigger>
                             <SelectContent>
-                                {getBranchInfo(selectedLead.branchId).officers.map(officer => (
+                                {getAssigneeInfo(selectedLead).officers.map(officer => (
                                     <SelectItem key={officer.id} value={officer.id}>{officer.name}</SelectItem>
                                 ))}
                             </SelectContent>
@@ -267,6 +345,31 @@ export default function BranchAssignmentsPage() {
               <Button type="button" variant="outline">Cancel</Button>
             </DialogClose>
             <Button onClick={handleConfirmAssignment}>Confirm Assignment</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={isReworkDialogOpen} onOpenChange={setIsReworkDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Return Lead for Rework</DialogTitle>
+            <DialogDescription>
+                Provide a clear reason for returning this lead. This will be added to the lead's update history for the officer to see.
+            </DialogDescription>
+          </DialogHeader>
+            <div className="grid gap-2 py-2">
+                <Label htmlFor="reworkNote">Reason for Returning</Label>
+                <Textarea 
+                    id="reworkNote" 
+                    placeholder="e.g., 'Client meeting notes are missing. Please upload.'"
+                    value={reworkNote}
+                    onChange={(e) => setReworkNote(e.target.value)}
+                />
+            </div>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button type="button" variant="outline">Cancel</Button>
+            </DialogClose>
+            <Button onClick={handleConfirmRework}>Confirm Return</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

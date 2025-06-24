@@ -57,6 +57,7 @@ export default function OfficerDashboard() {
       case 'Reopened': return 'secondary';
       case 'In Progress': return 'outline';
       case 'Pending Closure': return 'destructive';
+      case 'Pending District Approval': return 'destructive';
       case 'Closed': return 'default';
       default: return 'secondary';
     }

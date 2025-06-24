@@ -56,4 +56,4 @@ export const initialLeads: SalesLead[] = [
   },
 ];
 
-export const leadStatusOptions: SalesLead['status'][] = ['New', 'Assigned', 'In Progress', 'Pending Closure', 'Closed', 'Reopened'];
+export const leadStatusOptions: SalesLead['status'][] = ['New', 'Assigned', 'In Progress', 'Pending Closure', 'Pending District Approval', 'Closed', 'Reopened'];
