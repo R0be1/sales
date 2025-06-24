@@ -1,8 +1,8 @@
 
 'use client';
 
-import { useEffect, useState, useMemo, useRef } from 'react';
-import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
+import { useEffect, useState, useMemo } from 'react';
+import { MapContainer, TileLayer, Marker, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
@@ -27,10 +27,20 @@ function MapEvents({ onMapClick }: { onMapClick: (latlng: L.LatLng) => void }) {
     return null;
 }
 
+// This component runs inside the MapContainer's context and has access to the map instance.
+// It repositions the map view when its `center` prop changes.
+function ChangeView({ center, zoom }: { center: [number, number], zoom: number }) {
+    const map = useMap();
+    useEffect(() => {
+        map.setView(center, zoom);
+    }, [center, zoom, map]);
+    return null;
+}
+
 
 const LeadMap = ({ lat, lng, onMapClick }: LeadMapProps) => {
-    const mapRef = useRef<L.Map | null>(null);
-    // Store the initial center to prevent the MapContainer from re-rendering with a new center prop.
+    // This state is only used for the very first render to set the map's initial position.
+    // It does not change afterward, which prevents the MapContainer from re-initializing.
     const [initialCenter] = useState<[number, number]>([lat, lng]);
     const position: [number, number] = [lat, lng];
 
@@ -44,13 +54,6 @@ const LeadMap = ({ lat, lng, onMapClick }: LeadMapProps) => {
         });
     }, []);
     
-    // Update map view programmatically when position changes, using a ref to the map instance.
-    useEffect(() => {
-        if (mapRef.current) {
-            mapRef.current.setView(position, mapRef.current.getZoom());
-        }
-    }, [position]);
-
     const mapStyle = useMemo(() => ({ height: '100%', width: '100%', borderRadius: 'inherit' }), []);
 
     return (
@@ -58,10 +61,8 @@ const LeadMap = ({ lat, lng, onMapClick }: LeadMapProps) => {
             center={initialCenter} 
             zoom={12} 
             style={mapStyle}
-            whenReady={(map) => {
-                mapRef.current = map.target;
-            }}
         >
+            <ChangeView center={position} zoom={12} />
             <TileLayer
                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                 attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
