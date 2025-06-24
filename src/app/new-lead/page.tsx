@@ -160,6 +160,9 @@ export default function NewLeadPage() {
                     <Link href="/branch-assignments"><SidebarMenuButton><Icons.building2 className="mr-2" />Branch View</SidebarMenuButton></Link>
                 </SidebarMenuItem>
                  <SidebarMenuItem>
+                    <Link href="/offsite-reports"><SidebarMenuButton><Icons.alertTriangle className="mr-2" />Off-site Reports</SidebarMenuButton></Link>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
                     <SidebarMenuButton><Icons.settings className="mr-2" />Settings</SidebarMenuButton>
                 </SidebarMenuItem>
             </SidebarMenu>
