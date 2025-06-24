@@ -90,13 +90,6 @@ export default function NewLeadPage() {
         }
         const data = await response.json();
         setSearchResults(data);
-        if (data.length === 0) {
-          toast({
-            title: "No Results",
-            description: "No locations found for your query. Try being more specific.",
-            variant: "destructive",
-          })
-        }
       } catch (error) {
         toast({
           title: "Search Error",
