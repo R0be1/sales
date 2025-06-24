@@ -100,7 +100,7 @@ export default function DashboardPage() {
             generated,
             achievement,
         }
-    });
+    }).sort((a, b) => b.achievement - a.achievement);
 
     const performanceByBranch = displayedBranches.map(branch => {
       const branchLeads = filteredLeads.filter(l => l.branchId === branch.id);
@@ -116,7 +116,7 @@ export default function DashboardPage() {
           generated,
           achievement,
       }
-    });
+    }).sort((a, b) => b.achievement - a.achievement);
 
     return {
       totalLeads,
