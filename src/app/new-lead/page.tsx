@@ -84,18 +84,13 @@ export default function NewLeadPage() {
       methods.setValue('lng', undefined as any);
 
       try {
-        const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}`);
+        const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&countrycodes=et&q=${encodeURIComponent(searchQuery)}`);
         if (!response.ok) {
           throw new Error('Network response was not ok');
         }
         const data = await response.json();
         setSearchResults(data);
       } catch (error) {
-        toast({
-          title: "Search Error",
-          description: "Could not fetch location data. Please try again later.",
-          variant: "destructive",
-        });
         console.error("Failed to fetch location data:", error);
       } finally {
         setIsSearching(false);
