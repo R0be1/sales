@@ -51,6 +51,7 @@ export default function DistrictAssignmentsPage() {
   const [isReworkDialogOpen, setIsReworkDialogOpen] = useState(false);
   const [reworkNote, setReworkNote] = useState('');
   const [selectedLead, setSelectedLead] = useState<SalesLead | null>(null);
+  const [pendingAssignments, setPendingAssignments] = useState<Record<string, string>>({});
 
   useEffect(() => {
     const storedLeadsJSON = localStorage.getItem('salesLeads');
@@ -75,6 +76,7 @@ export default function DistrictAssignmentsPage() {
   const updateLeadStatus = (leadId: string, status: SalesLead['status'], note?: string) => {
     const updatedLeads = leads.map(lead => {
       if (lead.id === leadId) {
+        const branchId = status === 'Assigned' ? (pendingAssignments[leadId] || lead.branchId) : lead.branchId;
         const newUpdate = {
           text: note ? `Returned for rework: ${note}` : `Status changed to ${status}`,
           timestamp: new Date(),
@@ -83,6 +85,7 @@ export default function DistrictAssignmentsPage() {
         return {
           ...lead,
           status: status,
+          branchId: branchId,
           updates: [...lead.updates, newUpdate]
         };
       }
@@ -92,9 +95,23 @@ export default function DistrictAssignmentsPage() {
     localStorage.setItem('salesLeads', JSON.stringify(updatedLeads));
   };
   
+  const handleBranchSelection = (leadId: string, branchId: string) => {
+    setPendingAssignments(prev => ({
+      ...prev,
+      [leadId]: branchId,
+    }));
+  };
+
   const handleAssignBranch = (leadId: string, branchId: string) => {
     const branch = branches.find(b => b.id === branchId);
     updateLeadStatus(leadId, 'Assigned', `Assigned to ${branch?.name || 'branch'}.`);
+    
+    setPendingAssignments(prev => {
+      const newState = { ...prev };
+      delete newState[leadId];
+      return newState;
+    });
+
     toast({
         title: "Lead Assigned",
         description: "The lead has been assigned to the branch.",
@@ -200,19 +217,27 @@ export default function DistrictAssignmentsPage() {
                                 <TableCell className="hidden md:table-cell">{format(lead.createdAt, "PPP")}</TableCell>
                                 <TableCell className="hidden lg:table-cell">{lead.deadline ? format(new Date(lead.deadline), "PPP") : 'N/A'}</TableCell>
                                 <TableCell>
-                                    <Select onValueChange={(branchId) => handleAssignBranch(lead.id, branchId)}>
-                                        <SelectTrigger className="w-full sm:w-[180px]">
-                                            <SelectValue placeholder="Select a branch" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {branches
-                                                .filter(b => b.districtId === lead.districtId)
-                                                .map(branch => (
-                                                    <SelectItem key={branch.id} value={branch.id}>{branch.name}</SelectItem>
-                                                ))
-                                            }
-                                        </SelectContent>
-                                    </Select>
+                                    <div className="flex items-center gap-2">
+                                        <Select
+                                            value={pendingAssignments[lead.id] || ''}
+                                            onValueChange={(branchId) => handleBranchSelection(lead.id, branchId)}
+                                        >
+                                            <SelectTrigger className="w-full sm:w-[180px]">
+                                                <SelectValue placeholder="Select a branch" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {branches
+                                                    .filter(b => b.districtId === lead.districtId)
+                                                    .map(branch => (
+                                                        <SelectItem key={branch.id} value={branch.id}>{branch.name}</SelectItem>
+                                                    ))
+                                                }
+                                            </SelectContent>
+                                        </Select>
+                                        {pendingAssignments[lead.id] && (
+                                            <Button size="sm" onClick={() => handleAssignBranch(lead.id, pendingAssignments[lead.id])}>Confirm</Button>
+                                        )}
+                                    </div>
                                 </TableCell>
                             </TableRow>
                         ))}
