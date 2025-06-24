@@ -27,7 +27,9 @@ function MapEvents({ onMapClick }: { onMapClick: (latlng: L.LatLng) => void }) {
 
 function ChangeView({ center, zoom }: {center: [number, number], zoom: number}) {
     const map = useMap();
-    map.setView(center, zoom);
+    useEffect(() => {
+        map.setView(center, zoom);
+    }, [center, zoom]);
     return null;
 }
 
