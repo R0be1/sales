@@ -18,6 +18,7 @@ interface LeadMapProps {
 }
 
 // This child component handles all map updates and events.
+// It is defined outside the main component to prevent re-creation on every render.
 function MapController({ lat, lng, onMapClick }: LeadMapProps) {
     const map = useMap();
 
