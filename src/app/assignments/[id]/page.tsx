@@ -331,7 +331,7 @@ export default function AssignmentDetailPage({ params }: { params: { id: string 
                                             )}
                                             {update.reportingLocation && lead.location && (() => {
                                                 const distance = getDistanceInKm(lead.location.lat, lead.location.lng, update.reportingLocation.lat, update.reportingLocation.lng);
-                                                const isOnSite = distance < 0.5;
+                                                const isOnSite = distance < 1;
                                                 return (
                                                     <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
                                                         <Icons.locateFixed className="h-4 w-4" />
