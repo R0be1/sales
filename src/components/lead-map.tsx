@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -42,10 +42,12 @@ const LeadMap = ({ lat, lng, onMapClick }: LeadMapProps) => {
         });
     }, []);
 
+    // Store the initial center to prevent the MapContainer from re-rendering with a new center prop.
+    const [initialCenter] = useState<[number, number]>([lat, lng]);
     const position: [number, number] = [lat, lng];
 
     return (
-        <MapContainer center={position} zoom={12} style={{ height: '100%', width: '100%', borderRadius: 'inherit' }}>
+        <MapContainer center={initialCenter} zoom={12} style={{ height: '100%', width: '100%', borderRadius: 'inherit' }}>
             <ChangeView center={position} zoom={12} />
             <TileLayer
                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
