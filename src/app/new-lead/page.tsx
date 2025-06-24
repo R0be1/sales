@@ -34,6 +34,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
+import { useState } from 'react';
 
 
 const leadSchema = z.object({
@@ -41,7 +42,7 @@ const leadSchema = z.object({
   description: z.string().min(10, { message: 'Description must be at least 10 characters long.' }),
   districtId: z.string().min(1, { message: 'Please select a district.' }),
   expectedSavings: z.coerce.number().min(0, "Expected savings must be a positive number."),
-  lat: z.coerce.number().min(-90, "Invalid latitude").max(90, "Invalid latitude"),
+  lat: z.coerce.number({ invalid_type_error: "Please search for and select a location." }).min(-90, "Invalid latitude").max(90, "Invalid latitude"),
   lng: z.coerce.number().min(-180, "Invalid longitude").max(180, "Invalid longitude"),
   deadline: z.date({ required_error: 'A deadline date is required.' }),
 });
@@ -51,6 +52,11 @@ export default function NewLeadPage() {
   const { toast } = useToast();
   const router = useRouter();
   
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [selectedLocationName, setSelectedLocationName] = useState('');
+
   const methods = useForm<z.infer<typeof leadSchema>>({
     resolver: zodResolver(leadSchema),
     defaultValues: {
@@ -58,13 +64,52 @@ export default function NewLeadPage() {
         description: '',
         districtId: '',
         expectedSavings: 0,
-        lat: 40.7128,
-        lng: -74.0060,
         deadline: new Date(new Date().setDate(new Date().getDate() + 7)),
     }
   });
 
   const { control, handleSubmit, formState: { errors } } = methods;
+
+  const handleSearch = async () => {
+    if (!searchQuery) return;
+    setIsSearching(true);
+    setSearchResults([]);
+    setSelectedLocationName('');
+    methods.setValue('lat', undefined as any, { shouldValidate: true });
+    methods.setValue('lng', undefined as any);
+    try {
+      const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}`);
+      if (!response.ok) {
+        throw new Error('Network response was not ok');
+      }
+      const data = await response.json();
+      setSearchResults(data);
+      if(data.length === 0) {
+        toast({
+          title: "No Results",
+          description: "No locations found for your query. Try being more specific.",
+          variant: "destructive",
+        })
+      }
+    } catch (error) {
+      toast({
+          title: "Search Error",
+          description: "Could not fetch location data. Please try again later.",
+          variant: "destructive",
+      });
+      console.error("Failed to fetch location data:", error);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const handleSelectLocation = (location: any) => {
+    methods.setValue('lat', parseFloat(location.lat), { shouldValidate: true });
+    methods.setValue('lng', parseFloat(location.lon));
+    setSelectedLocationName(location.display_name);
+    setSearchResults([]);
+    setSearchQuery(location.display_name);
+  };
 
   const onSubmit = (data: z.infer<typeof leadSchema>) => {
     const newLead: SalesLead = {
@@ -210,17 +255,53 @@ export default function NewLeadPage() {
                             </div>
                         </div>
 
-                        <div className="grid md:grid-cols-2 gap-4">
-                             <div className="grid gap-2">
-                                <Label htmlFor="lat">Latitude</Label>
-                                <Input id="lat" type="number" step="any" {...methods.register('lat')} />
-                                {errors.lat && <p className="text-red-500 text-xs mt-1">{errors.lat.message}</p>}
+                        <div className="grid gap-2">
+                            <Label htmlFor="location-search">Location</Label>
+                            <div className="flex gap-2">
+                                <Input
+                                    id="location-search"
+                                    placeholder="Search for an address..."
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter') {
+                                            e.preventDefault();
+                                            handleSearch();
+                                        }
+                                    }}
+                                />
+                                <Button type="button" onClick={handleSearch} disabled={isSearching} size="icon">
+                                    {isSearching ? <Icons.spinner className="animate-spin" /> : <Icons.search />}
+                                    <span className="sr-only">Search</span>
+                                </Button>
                             </div>
-                             <div className="grid gap-2">
-                                <Label htmlFor="lng">Longitude</Label>
-                                <Input id="lng" type="number" step="any" {...methods.register('lng')} />
-                                {errors.lng && <p className="text-red-500 text-xs mt-1">{errors.lng.message}</p>}
-                            </div>
+                             {errors.lat && !selectedLocationName && <p className="text-red-500 text-xs mt-1">{errors.lat.message}</p>}
+                            {searchResults.length > 0 && (
+                                <Card className="mt-2">
+                                    <CardContent className="p-2 max-h-48 overflow-y-auto">
+                                        <ul className="space-y-1">
+                                            {searchResults.map((result) => (
+                                                <li key={result.place_id}>
+                                                    <Button
+                                                        type="button"
+                                                        variant="ghost"
+                                                        className="w-full h-auto text-left justify-start py-2 px-2"
+                                                        onClick={() => handleSelectLocation(result)}
+                                                    >
+                                                        {result.display_name}
+                                                    </Button>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    </CardContent>
+                                </Card>
+                            )}
+                            {selectedLocationName && !searchResults.length && (
+                                <div className="mt-2 text-sm text-muted-foreground p-3 border rounded-md bg-muted/50">
+                                    <p className="font-medium text-foreground">Selected Location:</p>
+                                    <p>{selectedLocationName}</p>
+                                </div>
+                            )}
                         </div>
                     </CardContent>
                     <CardFooter className="border-t px-6 py-4">
