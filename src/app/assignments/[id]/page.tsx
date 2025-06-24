@@ -50,6 +50,7 @@ export default function AssignmentDetailPage({ params }: { params: { id: string 
   const [lead, setLead] = useState<SalesLead | null>(null);
   const [allLeads, setAllLeads] = useState<SalesLead[]>([]);
   const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
+  const [isVerifyingLocation, setIsVerifyingLocation] = useState(false);
   const { toast } = useToast();
 
   const { register: registerUpdate, handleSubmit: handleSubmitUpdate, control: controlUpdate, reset: resetUpdate, formState: { errors: updateErrors } } = useForm<z.infer<typeof updateSchema>>({
@@ -90,50 +91,103 @@ export default function AssignmentDetailPage({ params }: { params: { id: string 
       });
   }
 
+  const getDistanceInKm = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+    const R = 6371; // Radius of the Earth in km
+    const dLat = (lat2 - lat1) * (Math.PI / 180);
+    const dLon = (lon2 - lon1) * (Math.PI / 180);
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) *
+      Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  };
+
   const onUpdateSubmit = async (data: z.infer<typeof updateSchema>) => {
     if (!lead) return;
-    
-    const officer = branches.flatMap(b => b.officers).find(o => o.id === lead.officerId);
-    
-    let attachmentData;
-    if (attachmentFile) {
-        try {
-            const dataUrl = await fileToDataUrl(attachmentFile);
-            attachmentData = {
-                name: attachmentFile.name,
-                dataUrl: dataUrl
-            }
-        } catch (error) {
-            toast({ title: "File Error", description: "Could not read the attached file.", variant: "destructive" });
-            return;
-        }
-    }
+    setIsVerifyingLocation(true);
 
-    const updatedLeads = allLeads.map(l => {
-        if (l.id === lead.id) {
-            const newUpdate: SalesLead['updates'][0] = { 
-                text: data.updateText, 
-                timestamp: new Date(), 
-                author: officer?.name || 'System',
-                ...(data.generatedSavings && { generatedSavings: data.generatedSavings }),
-                ...(attachmentData && { attachment: attachmentData })
-            };
-            return {
-                ...l,
-                status: data.status,
-                updates: [...l.updates, newUpdate]
+    try {
+        let reportingLocation: { lat: number; lng: number } | undefined;
+        
+        const getLocation = () => new Promise<GeolocationPosition>((resolve, reject) => {
+          if (!navigator.geolocation) {
+            return reject(new Error("Geolocation is not supported by your browser."));
+          }
+          navigator.geolocation.getCurrentPosition(resolve, reject, {
+            enableHighAccuracy: true,
+            timeout: 10000,
+            maximumAge: 0
+          });
+        });
+
+        try {
+          const position = await getLocation();
+          reportingLocation = {
+            lat: position.coords.latitude,
+            lng: position.coords.longitude,
+          };
+        } catch (error) {
+          let message = "Could not get your location. Please enable permissions.";
+          if (error instanceof GeolocationPositionError) {
+              if (error.code === 1) message = "Location permission was denied.";
+              if (error.code === 2) message = "Location could not be determined.";
+              if (error.code === 3) message = "Location request timed out.";
+          }
+          toast({
+            title: "Location Verification Failed",
+            description: `${message} Update will be submitted without location data.`,
+            variant: "destructive",
+          });
+        }
+
+        const officer = branches.flatMap(b => b.officers).find(o => o.id === lead.officerId);
+        
+        let attachmentData;
+        if (attachmentFile) {
+            try {
+                const dataUrl = await fileToDataUrl(attachmentFile);
+                attachmentData = {
+                    name: attachmentFile.name,
+                    dataUrl: dataUrl
+                }
+            } catch (error) {
+                toast({ title: "File Error", description: "Could not read the attached file.", variant: "destructive" });
+                return; // Early return here
             }
         }
-        return l;
-    });
-    setAllLeads(updatedLeads);
-    localStorage.setItem('salesLeads', JSON.stringify(updatedLeads));
-    toast({
-        title: "Lead Updated",
-        description: `Lead "${lead.title}" has been updated.`,
-    });
-    router.push('/');
+
+        const updatedLeads = allLeads.map(l => {
+            if (l.id === lead.id) {
+                const newUpdate: SalesLead['updates'][0] = { 
+                    text: data.updateText, 
+                    timestamp: new Date(), 
+                    author: officer?.name || 'System',
+                    ...(data.generatedSavings && { generatedSavings: data.generatedSavings }),
+                    ...(attachmentData && { attachment: attachmentData }),
+                    ...(reportingLocation && { reportingLocation })
+                };
+                return {
+                    ...l,
+                    status: data.status,
+                    updates: [...l.updates, newUpdate]
+                }
+            }
+            return l;
+        });
+
+        setAllLeads(updatedLeads);
+        localStorage.setItem('salesLeads', JSON.stringify(updatedLeads));
+        toast({
+            title: "Lead Updated",
+            description: `Lead "${lead.title}" has been updated.`,
+        });
+        router.push('/');
+    } finally {
+        setIsVerifyingLocation(false);
+    }
   }
+
 
   const getStatusBadgeVariant = (status: SalesLead['status']): "default" | "secondary" | "destructive" | "outline" => {
     switch (status) {
@@ -253,7 +307,7 @@ export default function AssignmentDetailPage({ params }: { params: { id: string 
                         <ScrollArea className="h-48 w-full rounded-md border p-4">
                         {lead.updates.length > 0 ? (
                                 <div className="space-y-4">
-                                    {lead.updates.map((update, index) => (
+                                    {lead.updates.slice().reverse().map((update, index) => (
                                         <div key={index} className="text-sm">
                                             <p className="font-medium">{update.author} <span className="text-muted-foreground text-xs">on {update.timestamp ? format(new Date(update.timestamp), "PPp") : ''}</span></p>
                                             <p className="text-muted-foreground">{update.text}</p>
@@ -272,6 +326,26 @@ export default function AssignmentDetailPage({ params }: { params: { id: string 
                                                     <span>{update.attachment.name}</span>
                                                 </a>
                                             )}
+                                            {update.reportingLocation && lead.location && (() => {
+                                                const distance = getDistanceInKm(lead.location.lat, lead.location.lng, update.reportingLocation.lat, update.reportingLocation.lng);
+                                                const isOnSite = distance < 0.5;
+                                                return (
+                                                    <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
+                                                        <Icons.locateFixed className="h-4 w-4" />
+                                                        <a 
+                                                            href={`https://www.google.com/maps/search/?api=1&query=${update.reportingLocation.lat},${update.reportingLocation.lng}`}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            className="hover:underline"
+                                                        >
+                                                            Reported from location
+                                                        </a>
+                                                        <Badge variant={isOnSite ? 'default' : 'destructive'}>
+                                                            {isOnSite ? "On-site" : "Off-site"} ({distance.toFixed(2)} km away)
+                                                        </Badge>
+                                                    </div>
+                                                )
+                                            })()}
                                         </div>
                                     ))}
                                 </div>
@@ -322,7 +396,10 @@ export default function AssignmentDetailPage({ params }: { params: { id: string 
                         </div>
                         <CardFooter className="px-0 pt-4">
                             <Button type="button" variant="outline" onClick={() => router.push('/')}>Cancel</Button>
-                            <Button type="submit" className="ml-auto">Submit Update</Button>
+                            <Button type="submit" className="ml-auto" disabled={isVerifyingLocation}>
+                                {isVerifyingLocation && <Icons.spinner className="mr-2 h-4 w-4 animate-spin" />}
+                                {isVerifyingLocation ? 'Verifying...' : 'Submit Update'}
+                            </Button>
                         </CardFooter>
                      </form>
                 </CardContent>

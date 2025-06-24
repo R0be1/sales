@@ -37,6 +37,10 @@ export type SalesLead = {
         dataUrl: string;
     },
     generatedSavings?: number;
+    reportingLocation?: {
+        lat: number;
+        lng: number;
+    }
   }[];
   createdAt: Date;
   expectedSavings: number;
