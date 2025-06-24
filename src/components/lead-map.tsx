@@ -1,8 +1,8 @@
 
 'use client';
 
-import { useEffect, useState, useMemo, useRef } from 'react';
-import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
+import { useEffect, useState, useMemo } from 'react';
+import { MapContainer, TileLayer, Marker, useMap, useMapEvents } from 'react-leaflet';
 import type L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
@@ -17,20 +17,33 @@ interface LeadMapProps {
     onMapClick: (latlng: L.LatLng) => void;
 }
 
-// Component to handle map click events
-function MapEvents({ onMapClick }: { onMapClick: (latlng: L.LatLng) => void }) {
+// This child component handles all map updates and events.
+function MapController({ lat, lng, onMapClick }: LeadMapProps) {
+    const map = useMap();
+
+    // Effect to update map view when lat/lng props change from parent
+    useEffect(() => {
+        const currentCenter = map.getCenter();
+        if (currentCenter.lat !== lat || currentCenter.lng !== lng) {
+            map.setView([lat, lng], map.getZoom());
+        }
+    }, [lat, lng, map]);
+    
+    // Hook to handle map click events
     useMapEvents({
         click: (e) => {
             onMapClick(e.latlng);
         },
     });
-    return null;
+
+    return null; // This component does not render anything to the DOM
 }
 
 const LeadMap = ({ lat, lng, onMapClick }: LeadMapProps) => {
+    // Only use the initial lat/lng for the MapContainer's center prop.
+    // Subsequent updates are handled by the MapController component.
     const [initialCenter] = useState<[number, number]>([lat, lng]);
     const position: [number, number] = [lat, lng];
-    const mapRef = useRef<L.Map | null>(null);
 
     // Workaround for a known issue with Leaflet icons in Next.js
     useEffect(() => {
@@ -41,17 +54,6 @@ const LeadMap = ({ lat, lng, onMapClick }: LeadMapProps) => {
             shadowUrl: shadowUrl.src,
         });
     }, []);
-
-    // Effect to update map view when position prop changes
-    useEffect(() => {
-        if (mapRef.current) {
-            // Check if the view needs to be updated to avoid unnecessary calls
-            const currentCenter = mapRef.current.getCenter();
-            if (currentCenter.lat !== position[0] || currentCenter.lng !== position[1]) {
-                mapRef.current.setView(position, mapRef.current.getZoom());
-            }
-        }
-    }, [position]);
     
     const mapStyle = useMemo(() => ({ height: '100%', width: '100%', borderRadius: 'inherit' }), []);
 
@@ -60,14 +62,15 @@ const LeadMap = ({ lat, lng, onMapClick }: LeadMapProps) => {
             center={initialCenter} 
             zoom={12} 
             style={mapStyle}
-            ref={mapRef}
         >
             <TileLayer
                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                 attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
             />
+            {/* The Marker's position will update on re-render */}
             <Marker position={position} />
-            <MapEvents onMapClick={onMapClick} />
+            {/* The MapController handles events and view changes */}
+            <MapController lat={lat} lng={lng} onMapClick={onMapClick} />
         </MapContainer>
     );
 };
