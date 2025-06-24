@@ -1,7 +1,8 @@
+
 'use client';
 
-import { useState, useMemo, useCallback } from 'react';
-import { useForm, Controller } from 'react-hook-form';
+import { useState, useCallback } from 'react';
+import { useForm, Controller, FormProvider } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Button } from '@/components/ui/button';
@@ -60,7 +61,7 @@ export default function NewLeadPage() {
   const { toast } = useToast();
   const router = useRouter();
   
-  const { register, handleSubmit, control, watch, setValue, formState: { errors } } = useForm<z.infer<typeof leadSchema>>({
+  const methods = useForm<z.infer<typeof leadSchema>>({
     resolver: zodResolver(leadSchema),
     defaultValues: {
         title: '',
@@ -72,6 +73,8 @@ export default function NewLeadPage() {
         deadline: new Date(new Date().setDate(new Date().getDate() + 7)),
     }
   });
+
+  const { control, watch, setValue, handleSubmit, formState: { errors } } = methods;
 
   const lat = watch('lat');
   const lng = watch('lng');
@@ -185,6 +188,7 @@ export default function NewLeadPage() {
                 <h1 className="text-lg font-semibold md:text-2xl">Create New Sales Lead</h1>
             </div>
             <Card>
+                <FormProvider {...methods}>
                 <form onSubmit={handleSubmit(onSubmit)}>
                     <CardHeader>
                         <CardTitle>Lead Details</CardTitle>
@@ -195,13 +199,13 @@ export default function NewLeadPage() {
                     <CardContent className="grid gap-6">
                         <div className="grid gap-2">
                             <Label htmlFor="title">Title</Label>
-                            <Input id="title" {...register('title')} />
+                            <Input id="title" {...methods.register('title')} />
                             {errors.title && <p className="text-red-500 text-xs mt-1">{errors.title.message}</p>}
                         </div>
                         
                         <div className="grid gap-2">
                             <Label htmlFor="description">Description</Label>
-                            <Textarea id="description" {...register('description')} />
+                            <Textarea id="description" {...methods.register('description')} />
                             {errors.description && <p className="text-red-500 text-xs mt-1">{errors.description.message}</p>}
                         </div>
 
@@ -227,7 +231,7 @@ export default function NewLeadPage() {
                         <div className="grid md:grid-cols-2 gap-4">
                             <div className="grid gap-2">
                                 <Label htmlFor="expectedSavings">Savings Target</Label>
-                                <Input id="expectedSavings" type="number" {...register('expectedSavings')} />
+                                <Input id="expectedSavings" type="number" {...methods.register('expectedSavings')} />
                                 {errors.expectedSavings && <p className="text-red-500 text-xs mt-1">{errors.expectedSavings.message}</p>}
                             </div>
                             <div className="grid gap-2">
@@ -298,6 +302,7 @@ export default function NewLeadPage() {
                         <Button type="submit">Create Lead</Button>
                     </CardFooter>
                 </form>
+                </FormProvider>
             </Card>
           </main>
         </div>
