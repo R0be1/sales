@@ -56,6 +56,7 @@ export default function NewLeadPage() {
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [selectedLocationName, setSelectedLocationName] = useState('');
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
 
   const methods = useForm<z.infer<typeof leadSchema>>({
     resolver: zodResolver(leadSchema),
@@ -223,7 +224,7 @@ export default function NewLeadPage() {
                                     control={control}
                                     name="deadline"
                                     render={({ field }) => (
-                                        <Popover>
+                                        <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
                                             <PopoverTrigger asChild>
                                                 <Button
                                                     variant={"outline"}
@@ -240,7 +241,10 @@ export default function NewLeadPage() {
                                                 <Calendar
                                                     mode="single"
                                                     selected={field.value}
-                                                    onSelect={field.onChange}
+                                                    onSelect={(date) => {
+                                                        field.onChange(date);
+                                                        setIsCalendarOpen(false);
+                                                    }}
                                                     disabled={(date) => date < new Date(new Date().setDate(new Date().getDate() - 1))}
                                                     initialFocus
                                                 />
