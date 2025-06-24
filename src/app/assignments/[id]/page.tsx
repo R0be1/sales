@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -365,7 +366,7 @@ export default function AssignmentDetailPage({ params }: { params: { id: string 
                             <Textarea id="updateText" {...registerUpdate("updateText")} disabled={isPendingApproval} />
                             {updateErrors.updateText && <p className="text-red-500 text-xs mt-1">{updateErrors.updateText.message}</p>}
                          </div>
-                         <div className="grid grid-cols-2 gap-4">
+                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
                                 <Label htmlFor="status">New Status</Label>
                                  <Controller

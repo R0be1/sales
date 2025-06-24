@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
@@ -129,11 +130,11 @@ export default function OfficerDashboard() {
                     <TableRow>
                         <TableHead>Lead Title</TableHead>
                         <TableHead>Status</TableHead>
-                        <TableHead>Assigned To</TableHead>
+                        <TableHead className="hidden md:table-cell">Assigned To</TableHead>
                         <TableHead>Savings Progress</TableHead>
-                        <TableHead>Location</TableHead>
-                        <TableHead>Created At</TableHead>
-                        <TableHead>Deadline</TableHead>
+                        <TableHead className="hidden lg:table-cell">Location</TableHead>
+                        <TableHead className="hidden lg:table-cell">Created At</TableHead>
+                        <TableHead className="hidden md:table-cell">Deadline</TableHead>
                         <TableHead><span className="sr-only">Actions</span></TableHead>
                     </TableRow>
                     </TableHeader>
@@ -146,13 +147,13 @@ export default function OfficerDashboard() {
                             <TableRow key={lead.id}>
                                 <TableCell className="font-medium">{lead.title}</TableCell>
                                 <TableCell><Badge variant={getStatusBadgeVariant(lead.status)}>{lead.status}</Badge></TableCell>
-                                <TableCell>{officer?.name || 'N/A'}, {branch?.name || 'N/A'}, {district?.name || 'N/A'}</TableCell>
+                                <TableCell className="hidden md:table-cell">{officer?.name || 'N/A'}, {branch?.name || 'N/A'}, {district?.name || 'N/A'}</TableCell>
                                 <TableCell>
                                     <div className="font-medium">{formatCurrency(lead.expectedSavings)} <span className="text-xs text-muted-foreground">Target</span></div>
                                     <Progress value={achievementPercentage} className="mt-1 h-2" />
                                     <div className="text-xs text-muted-foreground">{achievementPercentage.toFixed(0)}% achieved</div>
                                 </TableCell>
-                                <TableCell>
+                                <TableCell className="hidden lg:table-cell">
                                     <a 
                                         href={`https://www.google.com/maps/search/?api=1&query=${lead.location.lat},${lead.location.lng}`}
                                         target="_blank"
@@ -162,8 +163,8 @@ export default function OfficerDashboard() {
                                         <Icons.mapPin className="h-4 w-4" /> View Map
                                     </a>
                                 </TableCell>
-                                <TableCell>{format(lead.createdAt, "PPP")}</TableCell>
-                                <TableCell>{lead.deadline ? format(new Date(lead.deadline), "PPP") : 'N/A'}</TableCell>
+                                <TableCell className="hidden lg:table-cell">{format(lead.createdAt, "PPP")}</TableCell>
+                                <TableCell className="hidden md:table-cell">{lead.deadline ? format(new Date(lead.deadline), "PPP") : 'N/A'}</TableCell>
                                 <TableCell>
                                     <Link href={`/assignments/${lead.id}`}>
                                         <Button variant="outline" size="sm">Details</Button>

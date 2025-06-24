@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
@@ -169,7 +170,7 @@ export default function DistrictAssignmentsPage() {
             
             <div className="grid gap-6">
                 <Card>
-                    <CardHeader className="flex flex-row items-center justify-between">
+                    <CardHeader className="flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
                     <div>
                         <CardTitle>Assign Leads to Branches</CardTitle>
                         <CardDescription>
@@ -185,9 +186,9 @@ export default function DistrictAssignmentsPage() {
                         <TableHeader>
                         <TableRow>
                             <TableHead>Lead Title</TableHead>
-                            <TableHead>District</TableHead>
-                            <TableHead>Created At</TableHead>
-                            <TableHead>Deadline</TableHead>
+                            <TableHead className="hidden md:table-cell">District</TableHead>
+                            <TableHead className="hidden md:table-cell">Created At</TableHead>
+                            <TableHead className="hidden lg:table-cell">Deadline</TableHead>
                             <TableHead>Assign to Branch</TableHead>
                         </TableRow>
                         </TableHeader>
@@ -195,12 +196,12 @@ export default function DistrictAssignmentsPage() {
                         {unassignedLeads.map((lead) => (
                             <TableRow key={lead.id}>
                                 <TableCell className="font-medium">{lead.title}</TableCell>
-                                <TableCell>{getDistrictName(lead.districtId)}</TableCell>
-                                <TableCell>{format(lead.createdAt, "PPP")}</TableCell>
-                                <TableCell>{lead.deadline ? format(new Date(lead.deadline), "PPP") : 'N/A'}</TableCell>
+                                <TableCell className="hidden md:table-cell">{getDistrictName(lead.districtId)}</TableCell>
+                                <TableCell className="hidden md:table-cell">{format(lead.createdAt, "PPP")}</TableCell>
+                                <TableCell className="hidden lg:table-cell">{lead.deadline ? format(new Date(lead.deadline), "PPP") : 'N/A'}</TableCell>
                                 <TableCell>
                                     <Select onValueChange={(branchId) => handleAssignBranch(lead.id, branchId)}>
-                                        <SelectTrigger className="w-[180px]">
+                                        <SelectTrigger className="w-full sm:w-[180px]">
                                             <SelectValue placeholder="Select a branch" />
                                         </SelectTrigger>
                                         <SelectContent>
@@ -235,8 +236,8 @@ export default function DistrictAssignmentsPage() {
                             <TableHeader>
                                 <TableRow>
                                     <TableHead>Lead Title</TableHead>
-                                    <TableHead>Branch</TableHead>
-                                    <TableHead>Officer</TableHead>
+                                    <TableHead className="hidden md:table-cell">Branch</TableHead>
+                                    <TableHead className="hidden md:table-cell">Officer</TableHead>
                                     <TableHead className="text-right">Actions</TableHead>
                                 </TableRow>
                             </TableHeader>
@@ -246,8 +247,8 @@ export default function DistrictAssignmentsPage() {
                                     return (
                                         <TableRow key={lead.id}>
                                             <TableCell className="font-medium">{lead.title}</TableCell>
-                                            <TableCell>{branchName}</TableCell>
-                                            <TableCell>{officerName}</TableCell>
+                                            <TableCell className="hidden md:table-cell">{branchName}</TableCell>
+                                            <TableCell className="hidden md:table-cell">{officerName}</TableCell>
                                             <TableCell className="text-right space-x-2">
                                                 <Button variant="outline" size="sm" onClick={() => openReworkDialog(lead)}>Return</Button>
                                                 <Button size="sm" onClick={() => handleApproveAndClose(lead.id)}>Approve & Close</Button>

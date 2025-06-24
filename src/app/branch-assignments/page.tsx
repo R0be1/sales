@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
@@ -216,8 +217,8 @@ export default function BranchAssignmentsPage() {
                         <TableHeader>
                         <TableRow>
                             <TableHead>Lead Title</TableHead>
-                            <TableHead>Branch</TableHead>
-                            <TableHead>Deadline</TableHead>
+                            <TableHead className="hidden md:table-cell">Branch</TableHead>
+                            <TableHead className="hidden lg:table-cell">Deadline</TableHead>
                             <TableHead className="text-right">Action</TableHead>
                         </TableRow>
                         </TableHeader>
@@ -227,8 +228,8 @@ export default function BranchAssignmentsPage() {
                             return (
                                 <TableRow key={lead.id}>
                                     <TableCell className="font-medium">{lead.title}</TableCell>
-                                    <TableCell>{branchName}</TableCell>
-                                    <TableCell>{lead.deadline ? format(new Date(lead.deadline), "PPP") : 'N/A'}</TableCell>
+                                    <TableCell className="hidden md:table-cell">{branchName}</TableCell>
+                                    <TableCell className="hidden lg:table-cell">{lead.deadline ? format(new Date(lead.deadline), "PPP") : 'N/A'}</TableCell>
                                     <TableCell className="text-right">
                                         <Button variant="outline" size="sm" onClick={() => openAssignDialog(lead)}>Assign</Button>
                                     </TableCell>
@@ -256,7 +257,7 @@ export default function BranchAssignmentsPage() {
                             <TableRow>
                                 <TableHead>Lead Title</TableHead>
                                 <TableHead>Officer</TableHead>
-                                <TableHead>Submitted On</TableHead>
+                                <TableHead className="hidden md:table-cell">Submitted On</TableHead>
                                 <TableHead className="text-right">Actions</TableHead>
                             </TableRow>
                         </TableHeader>
@@ -268,7 +269,7 @@ export default function BranchAssignmentsPage() {
                                 <TableRow key={lead.id}>
                                     <TableCell className="font-medium">{lead.title}</TableCell>
                                     <TableCell>{officerName}</TableCell>
-                                    <TableCell>{lastUpdate ? format(lastUpdate.timestamp, "PPP") : 'N/A'}</TableCell>
+                                    <TableCell className="hidden md:table-cell">{lastUpdate ? format(lastUpdate.timestamp, "PPP") : 'N/A'}</TableCell>
                                     <TableCell className="text-right space-x-2">
                                         <Button variant="outline" size="sm" onClick={() => openReworkDialog(lead)}>Return</Button>
                                         <Button size="sm" onClick={() => handleApprove(lead.id)}>Approve</Button>

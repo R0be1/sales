@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
@@ -166,11 +167,11 @@ export default function DashboardPage() {
       <SidebarInset>
         <div className="flex min-h-screen w-full flex-col bg-muted/40">
           <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
-            <div className="flex items-center">
+            <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
               <h1 className="text-lg font-semibold md:text-2xl">Sales Dashboard</h1>
-               <div className="ml-auto flex items-center gap-4">
+               <div className="flex w-full flex-col items-stretch gap-2 sm:w-auto sm:flex-row sm:items-center sm:gap-4">
                     <Select value={selectedDistrict} onValueChange={setSelectedDistrict}>
-                        <SelectTrigger className="w-[180px]">
+                        <SelectTrigger className="w-full sm:w-[180px]">
                             <SelectValue placeholder="Filter by District" />
                         </SelectTrigger>
                         <SelectContent>
@@ -181,7 +182,7 @@ export default function DashboardPage() {
                         </SelectContent>
                     </Select>
                     <Select value={selectedBranch} onValueChange={setSelectedBranch}>
-                        <SelectTrigger className="w-[180px]">
+                        <SelectTrigger className="w-full sm:w-[180px]">
                             <SelectValue placeholder="Filter by Branch" />
                         </SelectTrigger>
                         <SelectContent>
@@ -268,8 +269,8 @@ export default function DashboardPage() {
                               <TableHeader>
                                   <TableRow>
                                       <TableHead>District</TableHead>
-                                      <TableHead className="text-right">Expected</TableHead>
-                                      <TableHead className="text-right">Generated</TableHead>
+                                      <TableHead className="text-right hidden sm:table-cell">Expected</TableHead>
+                                      <TableHead className="text-right hidden sm:table-cell">Generated</TableHead>
                                       <TableHead className="w-[120px]">Achievement</TableHead>
                                   </TableRow>
                               </TableHeader>
@@ -277,8 +278,8 @@ export default function DashboardPage() {
                                   {dashboardStats.performanceByDistrict.map((p) => (
                                       <TableRow key={p.id}>
                                           <TableCell className="font-medium">{p.name}</TableCell>
-                                          <TableCell className="text-right">{formatCurrency(p.expected)}</TableCell>
-                                          <TableCell className="text-right">{formatCurrency(p.generated)}</TableCell>
+                                          <TableCell className="text-right hidden sm:table-cell">{formatCurrency(p.expected)}</TableCell>
+                                          <TableCell className="text-right hidden sm:table-cell">{formatCurrency(p.generated)}</TableCell>
                                           <TableCell>
                                               <div className="flex items-center gap-2">
                                                   <Progress value={p.achievement} className="h-2 w-16" />
@@ -301,7 +302,7 @@ export default function DashboardPage() {
                               <TableHeader>
                                   <TableRow>
                                       <TableHead>Branch</TableHead>
-                                      <TableHead>District</TableHead>
+                                      <TableHead className="hidden sm:table-cell">District</TableHead>
                                       <TableHead className="w-[120px]">Achievement</TableHead>
                                   </TableRow>
                               </TableHeader>
@@ -309,7 +310,7 @@ export default function DashboardPage() {
                                   {dashboardStats.performanceByBranch.map((p) => (
                                       <TableRow key={p.id}>
                                           <TableCell className="font-medium">{p.name}</TableCell>
-                                          <TableCell>{p.district}</TableCell>
+                                          <TableCell className="hidden sm:table-cell">{p.district}</TableCell>
                                           <TableCell>
                                               <div className="flex items-center gap-2">
                                                   <Progress value={p.achievement} className="h-2 w-16" />
