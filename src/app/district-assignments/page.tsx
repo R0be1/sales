@@ -169,6 +169,9 @@ export default function DistrictAssignmentsPage() {
                  <SidebarMenuItem>
                     <Link href="/branch-plans"><SidebarMenuButton><Icons.landmark className="mr-2" />Branch Plans</SidebarMenuButton></Link>
                 </SidebarMenuItem>
+                <SidebarMenuItem>
+                    <Link href="/submit-entry"><SidebarMenuButton><Icons.plusCircle className="mr-2" />Submit Entry</SidebarMenuButton></Link>
+                </SidebarMenuItem>
                  <SidebarMenuItem>
                     <Link href="/district-assignments"><SidebarMenuButton isActive><Icons.building className="mr-2" />District View</SidebarMenuButton></Link>
                 </SidebarMenuItem>
