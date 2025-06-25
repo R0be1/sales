@@ -3,16 +3,15 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
-import { useForm, Controller } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose, DialogDescription } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Icons } from '@/components/icons';
@@ -22,12 +21,6 @@ import { format } from "date-fns";
 import { SidebarProvider, Sidebar, SidebarInset, SidebarHeader, SidebarContent, SidebarMenu, SidebarMenuItem, SidebarMenuButton } from '@/components/ui/sidebar';
 import { branches, quarters, initialBranchPlans } from '@/lib/data';
 import { Progress } from '@/components/ui/progress';
-
-const planEntrySchema = z.object({
-  type: z.enum(['collection', 'withdrawal']),
-  amount: z.coerce.number().positive("Amount must be a positive number."),
-  description: z.string().min(5, "Description must be at least 5 characters."),
-});
 
 const rejectionSchema = z.object({
   rejectionReason: z.string().min(10, "A reason for rejection is required (min 10 characters)."),
@@ -41,10 +34,6 @@ export default function BranchPlansPage() {
   const [selectedEntry, setSelectedEntry] = useState<PlanEntry | null>(null);
 
   const { toast } = useToast();
-  const { register, handleSubmit, reset, control, formState: { errors } } = useForm<z.infer<typeof planEntrySchema>>({
-    resolver: zodResolver(planEntrySchema),
-    defaultValues: { type: 'collection', amount: 0, description: '' }
-  });
   const { register: registerReject, handleSubmit: handleSubmitReject, reset: resetReject, formState: { errors: rejectErrors } } = useForm<z.infer<typeof rejectionSchema>>({
     resolver: zodResolver(rejectionSchema),
   });
@@ -80,23 +69,6 @@ export default function BranchPlansPage() {
     const achievement = currentPlan.savingsTarget > 0 ? Math.min(100, (netSavings / currentPlan.savingsTarget) * 100) : 0;
     return { totalCollections, totalWithdrawals, netSavings, achievement };
   }, [currentPlan]);
-
-  const handleAddEntry = (data: z.infer<typeof planEntrySchema>) => {
-    if (!currentPlan) return;
-    const newEntry: PlanEntry = {
-      id: `entry-${Date.now()}`,
-      date: new Date(),
-      status: 'Pending',
-      submittedBy: 'Branch Manager',
-      ...data
-    };
-    const updatedPlans = plans.map(p =>
-      p.id === currentPlan.id ? { ...p, entries: [...p.entries, newEntry] } : p
-    );
-    savePlans(updatedPlans);
-    toast({ title: "Entry Submitted", description: "Your new entry has been submitted for approval." });
-    reset();
-  };
 
   const handleReviewEntry = (entryId: string, status: 'Approved' | 'Rejected', reason?: string) => {
     if (!currentPlan) return;
@@ -225,90 +197,52 @@ export default function BranchPlansPage() {
                         </CardContent>
                     </Card>
 
-                    <div className="grid gap-6 lg:grid-cols-5">
-                        <div className="lg:col-span-3">
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle>Track Submissions & Approvals</CardTitle>
-                                    <CardDescription>Branch Managers can see the status of their submissions here. District Directors can approve or reject pending entries.</CardDescription>
-                                </CardHeader>
-                                <CardContent>
-                                    <Table>
-                                        <TableHeader>
-                                            <TableRow>
-                                                <TableHead>Date</TableHead>
-                                                <TableHead>Type</TableHead>
-                                                <TableHead>Amount</TableHead>
-                                                <TableHead className="hidden md:table-cell">Description</TableHead>
-                                                <TableHead>Status</TableHead>
-                                                <TableHead className="text-right">Actions</TableHead>
-                                            </TableRow>
-                                        </TableHeader>
-                                        <TableBody>
-                                            {currentPlan.entries.slice().reverse().map(entry => (
-                                                <TableRow key={entry.id}>
-                                                    <TableCell className="hidden md:table-cell">{format(entry.date, "PPP")}</TableCell>
-                                                    <TableCell className="md:hidden">{format(entry.date, "P")}</TableCell>
-                                                    <TableCell><Badge variant={entry.type === 'collection' ? 'outline' : 'secondary'}>{entry.type}</Badge></TableCell>
-                                                    <TableCell className="font-medium">{formatCurrency(entry.amount)}</TableCell>
-                                                    <TableCell className="hidden md:table-cell text-muted-foreground">{entry.description}</TableCell>
-                                                    <TableCell><Badge variant={getStatusBadgeVariant(entry.status)}>{entry.status}</Badge></TableCell>
-                                                    <TableCell className="text-right">
-                                                        {entry.status === 'Pending' && (
-                                                            <div className="flex gap-2 justify-end">
-                                                                <Button size="sm" variant="outline" onClick={() => openRejectDialog(entry)}>Reject</Button>
-                                                                <Button size="sm" onClick={() => handleReviewEntry(entry.id, 'Approved')}>Approve</Button>
-                                                            </div>
-                                                        )}
-                                                    </TableCell>
-                                                </TableRow>
-                                            ))}
-                                        </TableBody>
-                                    </Table>
-                                    {currentPlan.entries.length === 0 && <div className="text-center p-8 text-muted-foreground">No entries submitted yet.</div>}
-                                </CardContent>
-                            </Card>
-                        </div>
-                        <div className="lg:col-span-2">
-                             <Card>
-                                <form onSubmit={handleSubmit(handleAddEntry)}>
-                                    <CardHeader>
-                                        <CardTitle>Submit a New Entry</CardTitle>
-                                        <CardDescription>For Branch Managers: Submit a new collection or withdrawal. It will appear in the table on the left as 'Pending' until reviewed.</CardDescription>
-                                    </CardHeader>
-                                    <CardContent className="space-y-4">
-                                        <div className="grid grid-cols-2 gap-4">
-                                            <div>
-                                                <Label htmlFor="type">Entry Type</Label>
-                                                <Controller name="type" control={control} render={({ field }) => (
-                                                    <Select onValueChange={field.onChange} value={field.value}>
-                                                        <SelectTrigger><SelectValue placeholder="Select type..." /></SelectTrigger>
-                                                        <SelectContent>
-                                                            <SelectItem value="collection">Collection</SelectItem>
-                                                            <SelectItem value="withdrawal">Withdrawal</SelectItem>
-                                                        </SelectContent>
-                                                    </Select>
-                                                )} />
-                                            </div>
-                                            <div>
-                                                <Label htmlFor="amount">Amount</Label>
-                                                <Input id="amount" type="number" {...register("amount")} />
-                                                {errors.amount && <p className="text-red-500 text-xs mt-1">{errors.amount.message}</p>}
-                                            </div>
-                                        </div>
-                                        <div>
-                                            <Label htmlFor="description">Description</Label>
-                                            <Textarea id="description" {...register("description")} />
-                                            {errors.description && <p className="text-red-500 text-xs mt-1">{errors.description.message}</p>}
-                                        </div>
-                                    </CardContent>
-                                    <CardFooter>
-                                        <Button type="submit">Submit for Approval</Button>
-                                    </CardFooter>
-                                </form>
-                            </Card>
-                        </div>
-                    </div>
+                    <Card>
+                        <CardHeader className="flex flex-row items-center justify-between">
+                            <div>
+                                <CardTitle>Track Submissions & Approvals</CardTitle>
+                                <CardDescription>Branch Managers can see the status of their submissions here. District Directors can approve or reject pending entries.</CardDescription>
+                            </div>
+                            <Link href="/branch-plans/new-entry">
+                                <Button><Icons.plusCircle className="mr-2 h-4 w-4" /> Submit New Entry</Button>
+                            </Link>
+                        </CardHeader>
+                        <CardContent>
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Date</TableHead>
+                                        <TableHead>Type</TableHead>
+                                        <TableHead>Amount</TableHead>
+                                        <TableHead className="hidden md:table-cell">Description</TableHead>
+                                        <TableHead>Status</TableHead>
+                                        <TableHead className="text-right">Actions</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {currentPlan.entries.slice().reverse().map(entry => (
+                                        <TableRow key={entry.id}>
+                                            <TableCell className="hidden md:table-cell">{format(entry.date, "PPP")}</TableCell>
+                                            <TableCell className="md:hidden">{format(entry.date, "P")}</TableCell>
+                                            <TableCell><Badge variant={entry.type === 'collection' ? 'outline' : 'secondary'}>{entry.type}</Badge></TableCell>
+                                            <TableCell className="font-medium">{formatCurrency(entry.amount)}</TableCell>
+                                            <TableCell className="hidden md:table-cell text-muted-foreground">{entry.description}</TableCell>
+                                            <TableCell><Badge variant={getStatusBadgeVariant(entry.status)}>{entry.status}</Badge></TableCell>
+                                            <TableCell className="text-right">
+                                                {entry.status === 'Pending' && (
+                                                    <div className="flex gap-2 justify-end">
+                                                        <Button size="sm" variant="outline" onClick={() => openRejectDialog(entry)}>Reject</Button>
+                                                        <Button size="sm" onClick={() => handleReviewEntry(entry.id, 'Approved')}>Approve</Button>
+                                                    </div>
+                                                )}
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                            {currentPlan.entries.length === 0 && <div className="text-center p-8 text-muted-foreground">No entries submitted yet.</div>}
+                        </CardContent>
+                    </Card>
                 </div>
             )}
           </main>
