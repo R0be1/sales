@@ -229,8 +229,8 @@ export default function BranchPlansPage() {
                         <div className="lg:col-span-3">
                             <Card>
                                 <CardHeader>
-                                    <CardTitle>Plan Entries</CardTitle>
-                                    <CardDescription>Review and manage all entries for this plan. As a District Director, you can approve or reject pending items.</CardDescription>
+                                    <CardTitle>Track Submissions & Approvals</CardTitle>
+                                    <CardDescription>Branch Managers can see the status of their submissions here. District Directors can approve or reject pending entries.</CardDescription>
                                 </CardHeader>
                                 <CardContent>
                                     <Table>
@@ -273,8 +273,8 @@ export default function BranchPlansPage() {
                              <Card>
                                 <form onSubmit={handleSubmit(handleAddEntry)}>
                                     <CardHeader>
-                                        <CardTitle>Add New Entry</CardTitle>
-                                        <CardDescription>As a Branch Manager, you can submit collections or withdrawals for approval.</CardDescription>
+                                        <CardTitle>Submit a New Entry</CardTitle>
+                                        <CardDescription>For Branch Managers: Submit a new collection or withdrawal. It will appear in the table on the left as 'Pending' until reviewed.</CardDescription>
                                     </CardHeader>
                                     <CardContent className="space-y-4">
                                         <div className="grid grid-cols-2 gap-4">
@@ -315,8 +315,8 @@ export default function BranchPlansPage() {
         </div>
       </SidebarInset>
       <Dialog open={isRejectDialogOpen} onOpenChange={setIsRejectDialogOpen}>
-        <DialogContent className="sm:max-w-md">
-          <form onSubmit={handleSubmitReject(onConfirmRejection)}>
+        <form onSubmit={handleSubmitReject(onConfirmRejection)}>
+          <DialogContent className="sm:max-w-md">
             <DialogHeader>
               <DialogTitle>Reject Entry</DialogTitle>
               <DialogDescription>
@@ -332,8 +332,8 @@ export default function BranchPlansPage() {
               <DialogClose asChild><Button type="button" variant="outline">Cancel</Button></DialogClose>
               <Button type="submit">Confirm Rejection</Button>
             </DialogFooter>
-          </form>
-        </DialogContent>
+          </DialogContent>
+        </form>
       </Dialog>
     </SidebarProvider>
   );
