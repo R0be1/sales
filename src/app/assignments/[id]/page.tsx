@@ -34,7 +34,7 @@ import type { SalesLead } from '@/lib/types';
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { SidebarProvider, Sidebar, SidebarInset, SidebarHeader, SidebarContent, SidebarMenu, SidebarMenuItem, SidebarMenuButton } from '@/components/ui/sidebar';
-import { districts, branches, leadStatusOptions, initialLeads } from '@/lib/data';
+import { districts, branches, initialLeads } from '@/lib/data';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Progress } from '@/components/ui/progress';
 
@@ -52,6 +52,7 @@ export default function AssignmentDetailPage({ params }: { params: { id: string 
   const [allLeads, setAllLeads] = useState<SalesLead[]>([]);
   const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
   const [isVerifyingLocation, setIsVerifyingLocation] = useState(false);
+  const [distanceThreshold, setDistanceThreshold] = useState(1);
   const { toast } = useToast();
 
   const { register: registerUpdate, handleSubmit: handleSubmitUpdate, control: controlUpdate, reset: resetUpdate, formState: { errors: updateErrors } } = useForm<z.infer<typeof updateSchema>>({
@@ -80,6 +81,14 @@ export default function AssignmentDetailPage({ params }: { params: { id: string 
     if (currentLead) {
         setLead(currentLead);
         resetUpdate({ updateText: '', status: currentLead.status, generatedSavings: 0 });
+    }
+
+    const storedThreshold = localStorage.getItem('offsiteDistanceThreshold');
+    if (storedThreshold) {
+        const parsedThreshold = parseFloat(storedThreshold);
+        if (!isNaN(parsedThreshold)) {
+            setDistanceThreshold(parsedThreshold);
+        }
     }
   }, [id, resetUpdate]);
 
@@ -331,7 +340,7 @@ export default function AssignmentDetailPage({ params }: { params: { id: string 
                                             )}
                                             {update.reportingLocation && lead.location && (() => {
                                                 const distance = getDistanceInKm(lead.location.lat, lead.location.lng, update.reportingLocation.lat, update.reportingLocation.lng);
-                                                const isOnSite = distance < 1;
+                                                const isOnSite = distance < distanceThreshold;
                                                 return (
                                                     <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
                                                         <Icons.locateFixed className="h-4 w-4" />

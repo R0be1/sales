@@ -25,6 +25,8 @@ import type { SalesLead } from '@/lib/types';
 import { format } from "date-fns";
 import { SidebarProvider, Sidebar, SidebarInset, SidebarHeader, SidebarContent, SidebarMenu, SidebarMenuItem, SidebarMenuButton } from '@/components/ui/sidebar';
 import { initialLeads, branches } from '@/lib/data';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 
 type OffsiteReport = {
   lead: SalesLead;
@@ -34,6 +36,7 @@ type OffsiteReport = {
 
 export default function OffsiteReportsPage() {
   const [leads, setLeads] = useState<SalesLead[]>([]);
+  const [distanceThreshold, setDistanceThreshold] = useState(1);
   
   useEffect(() => {
     const storedLeadsJSON = localStorage.getItem('salesLeads');
@@ -53,6 +56,14 @@ export default function OffsiteReportsPage() {
         localStorage.setItem('salesLeads', JSON.stringify(initialLeads));
     }
     setLeads(leadsData);
+
+    const storedThreshold = localStorage.getItem('offsiteDistanceThreshold');
+    if (storedThreshold) {
+        const parsedThreshold = parseFloat(storedThreshold);
+        if (!isNaN(parsedThreshold)) {
+            setDistanceThreshold(parsedThreshold);
+        }
+    }
   }, []);
 
   const getDistanceInKm = (lat1: number, lon1: number, lat2: number, lon2: number) => {
@@ -79,7 +90,7 @@ export default function OffsiteReportsPage() {
               update.reportingLocation.lat,
               update.reportingLocation.lng
             );
-            if (distance > 1) { // Check if distance is greater than 1km
+            if (distance > distanceThreshold) { // Check if distance is greater than the threshold
               reports.push({ lead, update, distance });
             }
           }
@@ -87,12 +98,22 @@ export default function OffsiteReportsPage() {
       }
     });
     return reports.sort((a, b) => b.update.timestamp.getTime() - a.update.timestamp.getTime());
-  }, [leads]);
+  }, [leads, distanceThreshold]);
   
   const getOfficerName = (officerId?: string) => {
       if (!officerId) return 'N/A';
       return branches.flatMap(b => b.officers).find(o => o.id === officerId)?.name || 'N/A';
   }
+
+  const handleThresholdChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    const parsedValue = parseFloat(value);
+    if (value === '' || (!isNaN(parsedValue) && parsedValue >= 0)) {
+        const newThreshold = isNaN(parsedValue) ? 1 : parsedValue;
+        setDistanceThreshold(newThreshold);
+        localStorage.setItem('offsiteDistanceThreshold', newThreshold.toString());
+    }
+  };
 
   return (
     <SidebarProvider>
@@ -131,10 +152,26 @@ export default function OffsiteReportsPage() {
             </div>
             <Card>
                 <CardHeader>
-                    <CardTitle>Flagged Reports</CardTitle>
-                    <CardDescription>
-                      This list shows all updates that were reported from a location more than 1km away from the lead's site.
-                    </CardDescription>
+                    <div className="flex flex-col gap-4 sm:flex-row sm:justify-between sm:items-start">
+                        <div>
+                            <CardTitle>Flagged Reports</CardTitle>
+                            <CardDescription>
+                              This list shows all updates that were reported from a location further than the configured distance from the lead's site.
+                            </CardDescription>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <Label htmlFor="distance-threshold" className="whitespace-nowrap shrink-0">On-site Range (km)</Label>
+                            <Input 
+                                id="distance-threshold" 
+                                type="number" 
+                                value={distanceThreshold}
+                                onChange={handleThresholdChange}
+                                className="w-24"
+                                min="0"
+                                step="0.1"
+                            />
+                        </div>
+                    </div>
                 </CardHeader>
                 <CardContent>
                 <Table>
