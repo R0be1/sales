@@ -161,6 +161,9 @@ export default function DashboardPage() {
             <SidebarMenuItem>
                 <Link href="/offsite-reports"><SidebarMenuButton><Icons.alertTriangle className="mr-2" />Off-site Reports</SidebarMenuButton></Link>
             </SidebarMenuItem>
+            <SidebarMenuItem>
+                <Link href="/settings"><SidebarMenuButton><Icons.settings className="mr-2" />Settings</SidebarMenuButton></Link>
+            </SidebarMenuItem>
           </SidebarMenu>
         </SidebarContent>
       </Sidebar>

@@ -25,8 +25,6 @@ import type { SalesLead } from '@/lib/types';
 import { format } from "date-fns";
 import { SidebarProvider, Sidebar, SidebarInset, SidebarHeader, SidebarContent, SidebarMenu, SidebarMenuItem, SidebarMenuButton } from '@/components/ui/sidebar';
 import { initialLeads, branches } from '@/lib/data';
-import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
 
 type OffsiteReport = {
   lead: SalesLead;
@@ -105,16 +103,6 @@ export default function OffsiteReportsPage() {
       return branches.flatMap(b => b.officers).find(o => o.id === officerId)?.name || 'N/A';
   }
 
-  const handleThresholdChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    const parsedValue = parseFloat(value);
-    if (value === '' || (!isNaN(parsedValue) && parsedValue >= 0)) {
-        const newThreshold = isNaN(parsedValue) ? 1 : parsedValue;
-        setDistanceThreshold(newThreshold);
-        localStorage.setItem('offsiteDistanceThreshold', newThreshold.toString());
-    }
-  };
-
   return (
     <SidebarProvider>
       <Sidebar>
@@ -141,6 +129,9 @@ export default function OffsiteReportsPage() {
                 <SidebarMenuItem>
                     <Link href="/offsite-reports"><SidebarMenuButton isActive><Icons.alertTriangle className="mr-2" />Off-site Reports</SidebarMenuButton></Link>
                 </SidebarMenuItem>
+                <SidebarMenuItem>
+                    <Link href="/settings"><SidebarMenuButton><Icons.settings className="mr-2" />Settings</SidebarMenuButton></Link>
+                </SidebarMenuItem>
             </SidebarMenu>
         </SidebarContent>
       </Sidebar>
@@ -152,26 +143,10 @@ export default function OffsiteReportsPage() {
             </div>
             <Card>
                 <CardHeader>
-                    <div className="flex flex-col gap-4 sm:flex-row sm:justify-between sm:items-start">
-                        <div>
-                            <CardTitle>Flagged Reports</CardTitle>
-                            <CardDescription>
-                              This list shows all updates that were reported from a location further than the configured distance from the lead's site.
-                            </CardDescription>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <Label htmlFor="distance-threshold" className="whitespace-nowrap shrink-0">On-site Range (km)</Label>
-                            <Input 
-                                id="distance-threshold" 
-                                type="number" 
-                                value={distanceThreshold}
-                                onChange={handleThresholdChange}
-                                className="w-24"
-                                min="0"
-                                step="0.1"
-                            />
-                        </div>
-                    </div>
+                    <CardTitle>Flagged Reports</CardTitle>
+                    <CardDescription>
+                      This list shows all updates reported from a location further than the configured on-site distance threshold. You can change the threshold on the <Link href="/settings" className="text-primary underline">Settings page</Link>.
+                    </CardDescription>
                 </CardHeader>
                 <CardContent>
                 <Table>
@@ -206,7 +181,7 @@ export default function OffsiteReportsPage() {
                 </Table>
                  {offsiteReports.length === 0 && (
                     <div className="text-center p-8 text-muted-foreground">
-                        No off-site reports found.
+                        No off-site reports found based on the current threshold.
                     </div>
                 )}
                 </CardContent>
