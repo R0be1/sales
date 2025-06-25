@@ -20,6 +20,7 @@ import { SidebarProvider, Sidebar, SidebarInset, SidebarHeader, SidebarContent, 
 import { branches, quarters, initialBranchPlans } from '@/lib/data';
 import Link from 'next/link';
 import { Input } from '@/components/ui/input';
+import { Progress } from '@/components/ui/progress';
 
 const newPlanEntrySchema = z.object({
   type: z.enum(['collection', 'withdrawal']),
@@ -60,6 +61,16 @@ export default function SubmitPlanEntryPage() {
   const currentPlan = useMemo(() => {
     return plans.find(p => p.branchId === selectedBranchId && p.quarter === selectedQuarter);
   }, [plans, selectedBranchId, selectedQuarter]);
+  
+  const planStats = useMemo(() => {
+    if (!currentPlan) return { totalCollections: 0, totalWithdrawals: 0, netSavings: 0, achievement: 0 };
+    const approvedEntries = currentPlan.entries.filter(e => e.status === 'Approved');
+    const totalCollections = approvedEntries.filter(e => e.type === 'collection').reduce((acc, e) => acc + e.amount, 0);
+    const totalWithdrawals = approvedEntries.filter(e => e.type === 'withdrawal').reduce((acc, e) => acc + e.amount, 0);
+    const netSavings = totalCollections - totalWithdrawals;
+    const achievement = currentPlan.savingsTarget > 0 ? Math.min(100, (netSavings / currentPlan.savingsTarget) * 100) : 0;
+    return { totalCollections, totalWithdrawals, netSavings, achievement };
+  }, [currentPlan]);
 
   const onNewEntrySubmit = (data: z.infer<typeof newPlanEntrySchema>) => {
     if (!currentPlan) {
@@ -155,80 +166,109 @@ export default function SubmitPlanEntryPage() {
               </div>
             </div>
             
-            <div className="grid gap-6 lg:grid-cols-5">
-                <div className="lg:col-span-3">
+            {!currentPlan ? (
+                <Card className="flex flex-col items-center justify-center p-12">
+                    <CardHeader>
+                        <CardTitle>No Plan Found</CardTitle>
+                        <CardDescription>There is no savings plan for the selected branch and quarter.</CardDescription>
+                    </CardHeader>
+                </Card>
+            ) : (
+                <div className="grid gap-6">
                     <Card>
                         <CardHeader>
-                            <CardTitle>Submit New Entry</CardTitle>
-                            <CardDescription>Submit a new collection or withdrawal for the selected branch and quarter. It will appear as 'Pending' until reviewed.</CardDescription>
+                            <CardTitle>Plan Summary: {currentPlan.quarter}</CardTitle>
+                            <CardDescription>An overview of the savings plan for {branches.find(b=>b.id === currentPlan.branchId)?.name}.</CardDescription>
                         </CardHeader>
-                        <form onSubmit={handleSubmitEntry(onNewEntrySubmit)}>
-                            <CardContent className="space-y-6">
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <Label htmlFor="type">Entry Type</Label>
-                                        <Controller name="type" control={controlEntry} render={({ field }) => (
-                                            <Select onValueChange={field.onChange} value={field.value}>
-                                                <SelectTrigger><SelectValue placeholder="Select type..." /></SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="collection">Collection</SelectItem>
-                                                    <SelectItem value="withdrawal">Withdrawal</SelectItem>
-                                                </SelectContent>
-                                            </Select>
-                                        )} />
-                                    </div>
-                                    <div>
-                                        <Label htmlFor="amount">Amount</Label>
-                                        <Input id="amount" type="number" {...registerEntry("amount")} />
-                                        {entryErrors.amount && <p className="text-red-500 text-xs mt-1">{entryErrors.amount.message}</p>}
-                                    </div>
-                                </div>
-                                <div>
-                                    <Label htmlFor="description">Description</Label>
-                                    <Textarea id="description" {...registerEntry("description")} placeholder="Provide details about this entry..." />
-                                    {entryErrors.description && <p className="text-red-500 text-xs mt-1">{entryErrors.description.message}</p>}
-                                </div>
-                            </CardContent>
-                            <CardFooter>
-                                <Button type="submit" className="w-full">Submit for Approval</Button>
-                            </CardFooter>
-                        </form>
-                    </Card>
-                </div>
-
-                <div className="lg:col-span-2">
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Recent Submissions</CardTitle>
-                            <CardDescription>Status of entries for the selected plan.</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>Date</TableHead>
-                                        <TableHead>Type</TableHead>
-                                        <TableHead>Amount</TableHead>
-                                        <TableHead>Status</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {currentPlan && currentPlan.entries.slice().reverse().map(entry => (
-                                        <TableRow key={entry.id}>
-                                            <TableCell className="hidden md:table-cell">{format(entry.date, "P")}</TableCell>
-                                            <TableCell className="md:hidden">{format(entry.date, "P")}</TableCell>
-                                            <TableCell><Badge variant={entry.type === 'collection' ? 'outline' : 'secondary'}>{entry.type}</Badge></TableCell>
-                                            <TableCell className="font-medium">{formatCurrency(entry.amount)}</TableCell>
-                                            <TableCell><Badge variant={getStatusBadgeVariant(entry.status)}>{entry.status}</Badge></TableCell>
-                                        </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
-                            {(!currentPlan || currentPlan.entries.length === 0) && <div className="text-center p-8 text-muted-foreground">No entries submitted yet.</div>}
+                        <CardContent className="space-y-4">
+                            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 text-sm">
+                                <div><p className="font-medium">Savings Target</p><p className="text-2xl font-bold">{formatCurrency(currentPlan.savingsTarget)}</p></div>
+                                <div><p className="font-medium">Approved Collections</p><p className="text-2xl font-bold text-green-600">{formatCurrency(planStats.totalCollections)}</p></div>
+                                <div><p className="font-medium">Approved Withdrawals</p><p className="text-2xl font-bold text-red-600">{formatCurrency(planStats.totalWithdrawals)}</p></div>
+                                <div><p className="font-medium">Net Savings</p><p className="text-2xl font-bold text-primary">{formatCurrency(planStats.netSavings)}</p></div>
+                            </div>
+                            <div>
+                                <Label>Achievement Progress ({planStats.achievement.toFixed(1)}%)</Label>
+                                <Progress value={planStats.achievement} className="h-3 mt-1" />
+                            </div>
                         </CardContent>
                     </Card>
+                    <div className="grid gap-6 lg:grid-cols-5">
+                        <div className="lg:col-span-3">
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle>Submit New Entry</CardTitle>
+                                    <CardDescription>Submit a new collection or withdrawal for the selected branch and quarter. It will appear as 'Pending' until reviewed.</CardDescription>
+                                </CardHeader>
+                                <form onSubmit={handleSubmitEntry(onNewEntrySubmit)}>
+                                    <CardContent className="space-y-6">
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div>
+                                                <Label htmlFor="type">Entry Type</Label>
+                                                <Controller name="type" control={controlEntry} render={({ field }) => (
+                                                    <Select onValueChange={field.onChange} value={field.value}>
+                                                        <SelectTrigger><SelectValue placeholder="Select type..." /></SelectTrigger>
+                                                        <SelectContent>
+                                                            <SelectItem value="collection">Collection</SelectItem>
+                                                            <SelectItem value="withdrawal">Withdrawal</SelectItem>
+                                                        </SelectContent>
+                                                    </Select>
+                                                )} />
+                                            </div>
+                                            <div>
+                                                <Label htmlFor="amount">Amount</Label>
+                                                <Input id="amount" type="number" {...registerEntry("amount")} />
+                                                {entryErrors.amount && <p className="text-red-500 text-xs mt-1">{entryErrors.amount.message}</p>}
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <Label htmlFor="description">Description</Label>
+                                            <Textarea id="description" {...registerEntry("description")} placeholder="Provide details about this entry..." />
+                                            {entryErrors.description && <p className="text-red-500 text-xs mt-1">{entryErrors.description.message}</p>}
+                                        </div>
+                                    </CardContent>
+                                    <CardFooter>
+                                        <Button type="submit" className="w-full">Submit for Approval</Button>
+                                    </CardFooter>
+                                </form>
+                            </Card>
+                        </div>
+
+                        <div className="lg:col-span-2">
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle>Recent Submissions</CardTitle>
+                                    <CardDescription>Status of entries for the selected plan.</CardDescription>
+                                </CardHeader>
+                                <CardContent>
+                                    <Table>
+                                        <TableHeader>
+                                            <TableRow>
+                                                <TableHead>Date</TableHead>
+                                                <TableHead>Type</TableHead>
+                                                <TableHead>Amount</TableHead>
+                                                <TableHead>Status</TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {currentPlan && currentPlan.entries.slice().reverse().map(entry => (
+                                                <TableRow key={entry.id}>
+                                                    <TableCell className="hidden md:table-cell">{format(entry.date, "P")}</TableCell>
+                                                    <TableCell className="md:hidden">{format(entry.date, "P")}</TableCell>
+                                                    <TableCell><Badge variant={entry.type === 'collection' ? 'outline' : 'secondary'}>{entry.type}</Badge></TableCell>
+                                                    <TableCell className="font-medium">{formatCurrency(entry.amount)}</TableCell>
+                                                    <TableCell><Badge variant={getStatusBadgeVariant(entry.status)}>{entry.status}</Badge></TableCell>
+                                                </TableRow>
+                                            ))}
+                                        </TableBody>
+                                    </Table>
+                                    {(!currentPlan || currentPlan.entries.length === 0) && <div className="text-center p-8 text-muted-foreground">No entries submitted yet.</div>}
+                                </CardContent>
+                            </Card>
+                        </div>
+                    </div>
                 </div>
-            </div>
+            )}
           </main>
         </div>
       </SidebarInset>
