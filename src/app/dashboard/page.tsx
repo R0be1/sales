@@ -20,8 +20,8 @@ import {
 } from '@/components/ui/table';
 import { Progress } from '@/components/ui/progress';
 import { Icons } from '@/components/icons';
-import type { SalesLead } from '@/lib/types';
-import { initialLeads, districts, branches } from '@/lib/data';
+import type { SalesLead, BranchPlan } from '@/lib/types';
+import { initialLeads, districts, branches, initialBranchPlans } from '@/lib/data';
 import { SidebarProvider, Sidebar, SidebarInset, SidebarHeader, SidebarContent, SidebarMenu, SidebarMenuItem, SidebarMenuButton } from '@/components/ui/sidebar';
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
@@ -29,14 +29,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 
 export default function DashboardPage() {
   const [leads, setLeads] = useState<SalesLead[]>([]);
+  const [plans, setPlans] = useState<BranchPlan[]>([]);
   const [selectedDistrict, setSelectedDistrict] = useState('all');
   const [selectedBranch, setSelectedBranch] = useState('all');
 
   useEffect(() => {
     const storedLeadsJSON = localStorage.getItem('salesLeads');
-    let leadsData: SalesLead[];
     if (storedLeadsJSON) {
-      leadsData = JSON.parse(storedLeadsJSON).map((lead: any) => ({
+      setLeads(JSON.parse(storedLeadsJSON).map((lead: any) => ({
         ...lead,
         createdAt: new Date(lead.createdAt),
         deadline: lead.deadline ? new Date(lead.deadline) : null,
@@ -44,12 +44,23 @@ export default function DashboardPage() {
           ...update,
           timestamp: new Date(update.timestamp),
         })),
-      }));
+      })));
     } else {
-      leadsData = initialLeads;
       localStorage.setItem('salesLeads', JSON.stringify(initialLeads));
+      setLeads(initialLeads);
     }
-    setLeads(leadsData);
+    
+    const storedPlansJSON = localStorage.getItem('branchPlans');
+    if (storedPlansJSON) {
+      setPlans(JSON.parse(storedPlansJSON).map((p: any) => ({
+        ...p,
+        entries: p.entries.map((e: any) => ({ ...e, date: new Date(e.date) }))
+      })));
+    } else {
+      localStorage.setItem('branchPlans', JSON.stringify(initialBranchPlans));
+      setPlans(initialBranchPlans);
+    }
+
   }, []);
 
   useEffect(() => {
@@ -63,6 +74,14 @@ export default function DashboardPage() {
         return districtMatch && branchMatch;
     });
 
+    const filteredPlans = plans.filter(plan => {
+        const branch = branches.find(b => b.id === plan.branchId);
+        if(!branch) return false;
+        const districtMatch = selectedDistrict === 'all' || branch.districtId === selectedDistrict;
+        const branchMatch = selectedBranch === 'all' || plan.branchId === selectedBranch;
+        return districtMatch && branchMatch;
+    });
+
     const totalLeads = filteredLeads.length;
     const totalExpectedSavings = filteredLeads.reduce((acc, lead) => acc + lead.expectedSavings, 0);
     const totalGeneratedSavings = filteredLeads.reduce((acc, lead) => {
@@ -70,9 +89,7 @@ export default function DashboardPage() {
         return acc + leadSavings;
     }, 0);
     const overallAchievement = totalExpectedSavings > 0 ? (totalGeneratedSavings / totalExpectedSavings) * 100 : 0;
-    const closedLeads = filteredLeads.filter(l => l.status === 'Closed').length;
-    const successRate = totalLeads > 0 ? (closedLeads / totalLeads) * 100 : 0;
-
+    
     const leadsByStatus = filteredLeads.reduce((acc, lead) => {
         acc[lead.status] = (acc[lead.status] || 0) + 1;
         return acc;
@@ -80,16 +97,9 @@ export default function DashboardPage() {
     
     const statusChartData = Object.entries(leadsByStatus).map(([status, count]) => ({ status, count }));
 
-    const displayedDistricts = districts.filter(d => selectedDistrict === 'all' || d.id === selectedDistrict);
-
-    const displayedBranches = branches.filter(b => {
-        const districtMatch = selectedDistrict === 'all' || b.districtId === selectedDistrict;
-        const branchMatch = selectedBranch === 'all' || b.id === selectedBranch;
-        return districtMatch && branchMatch;
-    });
-
-
-    const performanceByDistrict = displayedDistricts.map(district => {
+    const performanceByDistrict = districts
+      .filter(d => selectedDistrict === 'all' || d.id === selectedDistrict)
+      .map(district => {
         const districtLeads = filteredLeads.filter(l => l.districtId === district.id);
         const expected = districtLeads.reduce((acc, lead) => acc + lead.expectedSavings, 0);
         const generated = districtLeads.reduce((acc, lead) => acc + lead.updates.reduce((s, u) => s + (u.generatedSavings || 0), 0), 0);
@@ -103,33 +113,56 @@ export default function DashboardPage() {
         }
     }).sort((a, b) => b.achievement - a.achievement);
 
-    const performanceByBranch = displayedBranches.map(branch => {
-      const branchLeads = filteredLeads.filter(l => l.branchId === branch.id);
-      const expected = branchLeads.reduce((acc, lead) => acc + lead.expectedSavings, 0);
-      const generated = branchLeads.reduce((acc, lead) => acc + lead.updates.reduce((s, u) => s + (u.generatedSavings || 0), 0), 0);
-      const achievement = expected > 0 ? Math.min(100, (generated / expected) * 100) : 0;
-      const districtName = districts.find(d => d.id === branch.districtId)?.name || 'N/A';
-      return {
-          id: branch.id,
-          name: branch.name,
-          district: districtName,
-          expected,
-          generated,
-          achievement,
-      }
-    }).sort((a, b) => b.achievement - a.achievement);
+    const performanceByBranch = branches
+      .filter(b => {
+          const districtMatch = selectedDistrict === 'all' || b.districtId === selectedDistrict;
+          const branchMatch = selectedBranch === 'all' || b.id === selectedBranch;
+          return districtMatch && branchMatch;
+      })
+      .map(branch => {
+        const branchLeads = filteredLeads.filter(l => l.branchId === branch.id);
+        const expected = branchLeads.reduce((acc, lead) => acc + lead.expectedSavings, 0);
+        const generated = branchLeads.reduce((acc, lead) => acc + lead.updates.reduce((s, u) => s + (u.generatedSavings || 0), 0), 0);
+        const achievement = expected > 0 ? Math.min(100, (generated / expected) * 100) : 0;
+        const districtName = districts.find(d => d.id === branch.districtId)?.name || 'N/A';
+        return {
+            id: branch.id,
+            name: branch.name,
+            district: districtName,
+            expected,
+            generated,
+            achievement,
+        }
+      }).sort((a, b) => b.achievement - a.achievement);
+
+      const branchPlanPerformance = filteredPlans.map(plan => {
+          const branchName = branches.find(b => b.id === plan.branchId)?.name || 'N/A';
+          const approvedEntries = plan.entries.filter(e => e.status === 'Approved');
+          const collections = approvedEntries.filter(e => e.type === 'collection').reduce((acc, e) => acc + e.amount, 0);
+          const withdrawals = approvedEntries.filter(e => e.type === 'withdrawal').reduce((acc, e) => acc + e.amount, 0);
+          const netSavings = collections - withdrawals;
+          const achievement = plan.savingsTarget > 0 ? Math.min(100, (netSavings / plan.savingsTarget) * 100) : 0;
+          return {
+              id: plan.id,
+              branchName,
+              quarter: plan.quarter,
+              target: plan.savingsTarget,
+              netSavings,
+              achievement
+          }
+      }).sort((a,b) => b.achievement - a.achievement);
 
     return {
       totalLeads,
       totalExpectedSavings,
       totalGeneratedSavings,
       overallAchievement,
-      successRate,
       statusChartData,
       performanceByDistrict,
       performanceByBranch,
+      branchPlanPerformance,
     };
-  }, [leads, selectedDistrict, selectedBranch]);
+  }, [leads, plans, selectedDistrict, selectedBranch]);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
@@ -151,6 +184,9 @@ export default function DashboardPage() {
             </SidebarMenuItem>
             <SidebarMenuItem>
               <Link href="/"><SidebarMenuButton><Icons.clipboardList className="mr-2" />My Assignments</SidebarMenuButton></Link>
+            </SidebarMenuItem>
+             <SidebarMenuItem>
+                <Link href="/branch-plans"><SidebarMenuButton><Icons.landmark className="mr-2" />Branch Plans</SidebarMenuButton></Link>
             </SidebarMenuItem>
             <SidebarMenuItem>
               <Link href="/district-assignments"><SidebarMenuButton><Icons.building className="mr-2" />District View</SidebarMenuButton></Link>
@@ -232,7 +268,7 @@ export default function DashboardPage() {
                 </Card>
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Achievement Rate</CardTitle>
+                        <CardTitle className="text-sm font-medium">Lead Achievement Rate</CardTitle>
                         <Icons.target className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
@@ -261,11 +297,52 @@ export default function DashboardPage() {
                         </ChartContainer>
                     </CardContent>
                 </Card>
-                <div className="space-y-4">
+                 <Card>
+                      <CardHeader>
+                          <CardTitle>Branch Savings Plan Performance</CardTitle>
+                          <CardDescription>Quarterly savings plan achievement rates for each branch.</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                          <Table>
+                              <TableHeader>
+                                  <TableRow>
+                                      <TableHead>Branch</TableHead>
+                                      <TableHead>Quarter</TableHead>
+                                      <TableHead className="hidden sm:table-cell">Target</TableHead>
+                                      <TableHead className="hidden sm:table-cell">Net Savings</TableHead>
+                                      <TableHead className="w-[120px]">Achievement</TableHead>
+                                  </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                  {dashboardStats.branchPlanPerformance.map((p) => (
+                                      <TableRow key={p.id}>
+                                          <TableCell className="font-medium">{p.branchName}</TableCell>
+                                           <TableCell>{p.quarter}</TableCell>
+                                          <TableCell className="hidden sm:table-cell">{formatCurrency(p.target)}</TableCell>
+                                          <TableCell className="hidden sm:table-cell">{formatCurrency(p.netSavings)}</TableCell>
+                                          <TableCell>
+                                              <div className="flex items-center gap-2">
+                                                  <Progress value={p.achievement} className="h-2 w-16" />
+                                                  <span className="text-xs font-medium">{p.achievement.toFixed(0)}%</span>
+                                              </div>
+                                          </TableCell>
+                                      </TableRow>
+                                  ))}
+                              </TableBody>
+                          </Table>
+                           {dashboardStats.branchPlanPerformance.length === 0 && (
+                                <div className="text-center p-8 text-muted-foreground">
+                                    No branch plans match the current filter.
+                                </div>
+                            )}
+                      </CardContent>
+                  </Card>
+            </div>
+             <div className="grid gap-4 grid-cols-1 lg:grid-cols-2">
                   <Card>
                       <CardHeader>
-                          <CardTitle>Performance by District</CardTitle>
-                          <CardDescription>Savings and achievement rates for each district.</CardDescription>
+                          <CardTitle>Lead Performance by District</CardTitle>
+                          <CardDescription>Lead savings and achievement rates for each district.</CardDescription>
                       </CardHeader>
                       <CardContent>
                           <Table>
@@ -297,8 +374,8 @@ export default function DashboardPage() {
                   </Card>
                   <Card>
                       <CardHeader>
-                          <CardTitle>Performance by Branch</CardTitle>
-                          <CardDescription>Savings and achievement rates for each branch.</CardDescription>
+                          <CardTitle>Lead Performance by Branch</CardTitle>
+                          <CardDescription>Lead savings and achievement rates for each branch.</CardDescription>
                       </CardHeader>
                       <CardContent>
                           <Table>
@@ -327,7 +404,6 @@ export default function DashboardPage() {
                       </CardContent>
                   </Card>
                 </div>
-            </div>
           </main>
         </div>
       </SidebarInset>

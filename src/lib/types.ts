@@ -46,3 +46,23 @@ export type SalesLead = {
   expectedSavings: number;
   deadline: Date;
 };
+
+export type BranchPlan = {
+  id: string;
+  branchId: string;
+  quarter: string;
+  savingsTarget: number;
+  entries: PlanEntry[];
+};
+
+export type PlanEntry = {
+  id: string;
+  date: Date;
+  type: 'collection' | 'withdrawal';
+  amount: number;
+  description: string;
+  status: 'Pending' | 'Approved' | 'Rejected';
+  submittedBy: string;
+  reviewedBy?: string;
+  rejectionReason?: string;
+};
