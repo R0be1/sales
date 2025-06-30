@@ -151,7 +151,7 @@ async function main() {
         });
 
         if (entries && entries.length > 0) {
-            await prisma.planEntry.deleteMany({ where: { planId: restOfPlan.id }});
+            await prisma.planEntry.deleteMany({ where: { branchPlanId: restOfPlan.id }});
             await prisma.planEntry.createMany({
                 data: entries.map(entry => ({ 
                     id: entry.id,
@@ -163,7 +163,7 @@ async function main() {
                     submittedBy: entry.submittedBy,
                     reviewedBy: entry.reviewedBy,
                     rejectionReason: entry.rejectionReason,
-                    planId: restOfPlan.id 
+                    branchPlanId: restOfPlan.id 
                 }))
             });
         }
