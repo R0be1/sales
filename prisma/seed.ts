@@ -132,9 +132,9 @@ async function main() {
             create: restOfLead,
         });
         if (updates && updates.length > 0) {
-            await prisma.leadUpdate.deleteMany({ where: { leadId: restOfLead.id }});
+            await prisma.leadUpdate.deleteMany({ where: { salesLeadId: restOfLead.id }});
             await prisma.leadUpdate.createMany({
-                data: updates.map(update => ({ ...update, leadId: restOfLead.id }))
+                data: updates.map(update => ({ ...update, salesLeadId: restOfLead.id }))
             });
         }
     }
