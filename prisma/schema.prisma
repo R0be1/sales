@@ -1,0 +1,116 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum LeadStatus {
+  New
+  Assigned
+  InProgress
+  PendingClosure
+  PendingDistrictApproval
+  Closed
+  Reopened
+}
+
+enum PlanEntryType {
+  collection
+  withdrawal
+}
+
+enum PlanEntryStatus {
+  Pending
+  Approved
+  Rejected
+}
+
+model District {
+  id         String      @id @default(cuid())
+  name       String
+  branches   Branch[]
+  salesLeads SalesLead[]
+}
+
+model Branch {
+  id          String       @id @default(cuid())
+  name        String
+  districtId  String
+  district    District     @relation(fields: [districtId], references: [id])
+  officers    Officer[]
+  salesLeads  SalesLead[]
+  branchPlans BranchPlan[]
+}
+
+model Officer {
+  id         String      @id @default(cuid())
+  name       String
+  branchId   String
+  branch     Branch      @relation(fields: [branchId], references: [id])
+  salesLeads SalesLead[]
+}
+
+model SalesLead {
+  id              String     @id @default(cuid())
+  title           String
+  description     String
+  status          LeadStatus @default(New)
+  expectedSavings Decimal
+  lat             Float
+  lng             Float
+  createdAt       DateTime   @default(now())
+  deadline        DateTime
+
+  districtId String
+  district   District @relation(fields: [districtId], references: [id])
+
+  branchId String?
+  branch   Branch?   @relation(fields: [branchId], references: [id])
+
+  officerId String?
+  officer   Officer?  @relation(fields: [officerId], references: [id])
+
+  updates LeadUpdate[]
+}
+
+model LeadUpdate {
+  id                    String   @id @default(cuid())
+  text                  String
+  timestamp             DateTime @default(now())
+  author                String
+  generatedSavings      Decimal?
+  attachmentJson        Json?
+  reportingLocationJson Json?
+
+  salesLeadId String
+  salesLead   SalesLead @relation(fields: [salesLeadId], references: [id], onDelete: Cascade)
+}
+
+model BranchPlan {
+  id            String      @id @default(cuid())
+  quarter       String
+  savingsTarget Decimal
+
+  branchId String
+  branch   Branch @relation(fields: [branchId], references: [id])
+
+  entries PlanEntry[]
+}
+
+model PlanEntry {
+  id              String          @id @default(cuid())
+  date            DateTime        @default(now())
+  type            PlanEntryType
+  amount          Decimal
+  description     String
+  status          PlanEntryStatus @default(Pending)
+  submittedBy     String
+  reviewedBy      String?
+  rejectionReason String?
+
+  branchPlanId String
+  branchPlan   BranchPlan @relation(fields: [branchPlanId], references: [id], onDelete: Cascade)
+}
